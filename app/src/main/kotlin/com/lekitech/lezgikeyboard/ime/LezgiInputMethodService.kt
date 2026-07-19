@@ -22,6 +22,11 @@ class LezgiInputMethodService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
+        // Compose resolves the window Recomposer from the window root
+        // (the decor view), not from the ComposeView, so the lifecycle
+        // owners must be reachable from there — otherwise the first
+        // window traversal aborts and the keyboard never appears.
+        window?.window?.decorView?.let(imeLifecycleOwner::attach)
         val view = ComposeView(this)
         imeLifecycleOwner.attach(view)
         view.setContent {

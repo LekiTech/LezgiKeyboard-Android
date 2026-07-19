@@ -61,6 +61,16 @@ proven on a real device before any keys exist.
   padded outside it (platform-required, D-009/D-017 context).
 - Android always paints its own keyboard background (D-017).
 
+**Findings**
+- Device blocker (fixed): the keyboard failed to appear
+  (`ImeTracker onFailed at PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE`). Compose
+  resolves the window `Recomposer` from the **window root** (decor
+  view), not from the `ComposeView`, and an IME window has no lifecycle
+  owners of its own — so `ImeLifecycleOwner` must be attached to
+  `window.window.decorView` in `onCreateInputView`, not only to the
+  ComposeView. Any future window-level Compose surface must follow the
+  same rule.
+
 ---
 
 ## Stage 2 — Keyboard layout + typing
