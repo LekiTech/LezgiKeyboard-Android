@@ -35,6 +35,12 @@ class LezgiInputMethodService : InputMethodService() {
         return view
     }
 
+    // Never use fullscreen extract mode: the platform default turns it on
+    // in landscape, replacing the host field with a fullscreen editor and
+    // breaking the fixed-height contract. The keyboard is always just the
+    // keyboard (DECISIONS.md D-018).
+    override fun onEvaluateFullscreenMode(): Boolean = false
+
     override fun onDestroy() {
         imeLifecycleOwner.onDestroy()
         super.onDestroy()

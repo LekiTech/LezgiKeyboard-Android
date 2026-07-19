@@ -175,3 +175,15 @@ forced themes will pin them (Stage 7).
 *Why*: platform-required difference; the chosen colors are the ones iOS
 already matched by eye to the native backdrop, so the visual result is
 identical.
+
+## D-018 (2026-07-19) — Fullscreen extract mode is never used
+
+`onEvaluateFullscreenMode()` returns false unconditionally. The
+platform default enables extract mode in landscape, replacing the host
+field with a fullscreen editor above the keyboard.
+
+*Why*: extract mode breaks the fixed-height contract (§3: the keyboard
+owns its height, the host is never restyled) and has no iOS
+counterpart — the keyboard is always just the keyboard. Found during
+the Stage 1 audit: in landscape the IME window grew to 943 px instead
+of the contract height.
