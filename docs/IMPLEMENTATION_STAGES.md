@@ -15,7 +15,8 @@ Acceptance scenarios (S1–S17) reference `BEHAVIOR_SCENARIOS.md`.
 
 ## Stage 1 — Project skeleton + fixed-height IME
 
-**Status: implemented 2026-07-19 — awaiting device verification**
+**Status: done (2026-07-19)** — verified on an API 36 emulator and
+closed with a full repository audit.
 
 **Objective**: a buildable, installable IME that appears with the exact
 fixed-height geometry and correct background — the height contract
@@ -45,13 +46,15 @@ proven on a real device before any keys exist.
 - Databases, settings, themes beyond system, emoji, metrics.
 
 **Device test checklist**
-- [ ] App installs; onboarding opens; both buttons work.
-- [ ] Keyboard can be enabled and selected; it appears in any app.
-- [ ] Height is exactly 250 dp of content; the layout blocks match the
-      contract; no host-driven resizing.
-- [ ] Background and placeholder colors follow system light/dark.
-- [ ] Rotation and switching between fields do not change the height.
-- [ ] Gesture-navigation devices: keyboard content sits above the
+- [x] App installs; onboarding opens; both buttons work (settings list,
+      IME picker).
+- [x] Keyboard can be enabled and selected; it appears in any app.
+- [x] Height is exactly 250 dp of content; the layout blocks match the
+      contract; no host-driven resizing (window frame 719 px = 250 dp
+      + navigation inset, portrait and landscape).
+- [x] Background and placeholder colors follow system light/dark.
+- [x] Rotation and switching between fields do not change the height.
+- [x] Gesture-navigation devices: keyboard content sits above the
       system gesture area.
 
 **Acceptance scenarios expected to pass**: none yet (no typing).
@@ -87,6 +90,14 @@ proven on a real device before any keys exist.
      ComposeView. Verified fixed: no exception, window
      `isVisible=true`, placeholder renders. Any future window-level
      Compose surface must follow the same rule.
+- Closing audit: in landscape the platform switched the IME into
+  fullscreen extract mode (window 943 px, host field replaced by a
+  fullscreen editor) — fixed by `onEvaluateFullscreenMode() = false`
+  (D-018), landscape re-verified at the contract height. Cleanup:
+  removed an unused import, two not-yet-used palette roles, and the
+  unused `core-ktx` dependency; README expanded into a project
+  overview. Deferred cosmetics: the launcher uses the default system
+  icon (a product icon is a Stage 7+ asset decision).
 
 ---
 
