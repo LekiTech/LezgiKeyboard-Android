@@ -1,1 +1,43 @@
 # LezgiKeyboard-Android
+
+Native Android port of the Lezgi keyboard — the same product as the iOS
+version, running on a different OS. A user switching between platforms
+must never have to relearn how the keyboard behaves.
+
+- Kotlin, `InputMethodService`, Jetpack Compose.
+- Bundled 20k-word Lezgi dictionary (identical data on both platforms,
+  Cyrillic palochka ӏ U+04CF everywhere).
+- On-device learning, no INTERNET permission, no backup — nothing typed
+  ever leaves the device.
+
+## Documents
+
+| Document | Role |
+|---|---|
+| [ANDROID_PORT_CONTEXT.md](ANDROID_PORT_CONTEXT.md) | The behavioral specification (source of truth) |
+| [BEHAVIOR_SCENARIOS.md](BEHAVIOR_SCENARIOS.md) | Acceptance suite S1–S17 |
+| [docs/ANDROID_ARCHITECTURE_PLAN.md](docs/ANDROID_ARCHITECTURE_PLAN.md) | Architecture: structure, responsibilities, pipelines |
+| [docs/IOS_PARITY.md](docs/IOS_PARITY.md) | Undocumented iOS behaviors that must be preserved |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Chronological architectural decision log |
+| [docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md) | Staged plan and implementation log |
+
+## Building
+
+Requires an Android SDK (set `sdk.dir` in `local.properties` or
+`ANDROID_HOME`) and JDK 17+.
+
+```sh
+./gradlew :app:assembleDebug   # build
+./gradlew :app:installDebug    # install on a connected device
+```
+
+Then enable «Лезги чӏал» in the system keyboard list (the app's
+onboarding screen has shortcuts). On emulators with a hardware keyboard,
+also enable «show on-screen keyboard while hardware keyboard is active»
+— otherwise Android suppresses every on-screen IME.
+
+## Status
+
+Stage 1 of 8 (see [docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md)):
+the fixed-height IME shell is in place; the keyboard renders placeholder
+key rows. Typing arrives with Stage 2.
