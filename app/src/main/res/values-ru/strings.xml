@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Лезги Кхьин</string>
+
+    <string name="onboarding_title">Лезги Кхьин</string>
+    <string name="onboarding_subtitle">Пишите на родном языке</string>
+    <string name="onboarding_how_to">Как установить</string>
+    <string name="onboarding_step_enable">Включите «Лезги чӏал» в списке клавиатур</string>
+    <string name="onboarding_open_settings">Открыть Настройки</string>
+    <string name="onboarding_step_switch">Переключайтесь клавишей 🌐 или через выбор клавиатуры</string>
+    <string name="onboarding_select_keyboard">Выбрать клавиатуру</string>
+</resources>

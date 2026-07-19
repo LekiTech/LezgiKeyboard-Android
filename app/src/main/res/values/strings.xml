@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keyboard UI is Lezgi only; these two are shown by the system. -->
+    <string name="app_name">Lezgi Keyboard</string>
+    <string name="keyboard_name" translatable="false">Лезги чӏал</string>
+
+    <!-- Onboarding (localized like the iOS container app: en default, ru). -->
+    <string name="onboarding_title">Lezgi Keyboard</string>
+    <string name="onboarding_subtitle">Type in your native language</string>
+    <string name="onboarding_how_to">How to install</string>
+    <string name="onboarding_step_enable">Enable «Лезги чӏал» in the keyboard list</string>
+    <string name="onboarding_open_settings">Open Settings</string>
+    <string name="onboarding_step_switch">Switch to it with the 🌐 key or the keyboard picker</string>
+    <string name="onboarding_select_keyboard">Select keyboard</string>
+</resources>
