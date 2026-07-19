@@ -62,14 +62,31 @@ proven on a real device before any keys exist.
 - Android always paints its own keyboard background (D-017).
 
 **Findings**
-- Device blocker (fixed): the keyboard failed to appear
-  (`ImeTracker onFailed at PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE`). Compose
-  resolves the window `Recomposer` from the **window root** (decor
-  view), not from the `ComposeView`, and an IME window has no lifecycle
-  owners of its own — so `ImeLifecycleOwner` must be attached to
-  `window.window.decorView` in `onCreateInputView`, not only to the
-  ComposeView. Any future window-level Compose surface must follow the
-  same rule.
+- Blocker "keyboard never appears" — two stacked causes, both verified
+  at runtime on an API 36 emulator:
+  1. *Environmental*: on emulators with a hardware keyboard attached
+     and «show on-screen keyboard with physical keyboard» off
+     (`Settings.Secure show_ime_with_hard_keyboard = 0`), the default
+     `InputMethodService.onEvaluateInputViewShown()` returns false and
+     the IME silently declines every show — logcat shows only
+     `ImeTracker onFailed at PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE`, no
+     exception. Gboard shows regardless because it overrides that
+     evaluation; we keep the platform-default behavior (the toggle is
+     the user's choice). Emulator testing requires the setting on;
+     real phones report `KEYBOARD_NOKEYS` and are unaffected.
+  2. *Code bug (was hidden behind 1)*: with the show allowed, the
+     keyboard crash-looped —
+     `IllegalStateException: ViewTreeLifecycleOwner not found from
+     LinearLayout{… android:id/parentPanel}` in
+     `createLifecycleAwareWindowRecomposer` during
+     `AbstractComposeView.onAttachedToWindow`. Compose resolves the
+     window `Recomposer` from the **window root**, not from the
+     `ComposeView`, and an IME window has no lifecycle owners of its
+     own — `ImeLifecycleOwner` must be attached to
+     `window.window.decorView` in `onCreateInputView`, not only to the
+     ComposeView. Verified fixed: no exception, window
+     `isVisible=true`, placeholder renders. Any future window-level
+     Compose surface must follow the same rule.
 
 ---
 
