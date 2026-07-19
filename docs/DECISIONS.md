@@ -1,0 +1,177 @@
+# Architectural Decisions
+
+Chronological log of decisions that affect future development. Every
+entry records the reasoning, so later changes stay consistent with it.
+When a decision is superseded, mark it and link the replacement — never
+delete history.
+
+Format: `D-NNN (date) — title`, then decision and rationale.
+
+---
+
+## D-001 (2026-07-19) — The iOS implementation is the behavioral source of truth
+
+When `ANDROID_PORT_CONTEXT.md` and the working iOS keyboard disagree on
+user-visible behavior, follow the implementation and update the
+specification afterwards. First application: the suggestion-bar press
+capsule and the «Ваъ» confirm pill are filled with the **letter-key
+color** (as implemented), not the pressed-key color (as the spec's color
+table said).
+
+*Why*: users experience the implementation, not the document; parity
+means matching what users know.
+
+## D-002 (2026-07-19) — Both platforms ship identical dictionary data
+
+The Android repo's `lezgi_words.sqlite` was a stale pre-migration copy
+(2,374 words with a Latin `I` palochka). It was replaced with the iOS
+bundle's migrated file (Cyrillic `ӏ` U+04CF everywhere, 20,356 words,
+md5 `a33c970b680efae7f39f500f0b8408e4`). Any future dictionary update
+must land on both platforms as the same file.
+
+*Why*: exact-membership lookups (quoted-literal rule, saved-words
+filter) and Stage 8 cloud plans require byte-identical data.
+
+## D-003 (2026-07-19) — Android scope is keyboard-only
+
+The Android project ports the keyboard extension only. The launcher
+activity provides the minimum onboarding to enable and switch to the
+keyboard. Sticker export and other iOS container-app features are out of
+scope unless explicitly requested.
+
+## D-004 (2026-07-19) — Documentation lives in docs/
+
+`docs/IOS_PARITY.md` (undocumented behaviors to preserve — evolving),
+`docs/ANDROID_ARCHITECTURE_PLAN.md` (structure), `docs/DECISIONS.md`
+(this log). Any architectural decision made during development updates
+the appropriate document in the same change. Architecture never exists
+only in code.
+
+## D-005 (2026-07-19) — Components mirror iOS one-to-one
+
+Class names and responsibilities match the iOS files (`KeyboardModel`,
+`LezgiLayout`, `WordSuggestions`, `LearnedWords`, `KeyboardSettings`,
+`KeyboardView`, `SettingsPanelView`), with Android-only glue kept
+separate (`ImeLifecycleOwner`, `EditorState`).
+
+*Why*: a behavior found in one codebase must be locatable in the other
+by name; the two implementations will be maintained in lockstep.
+
+## D-006 (2026-07-19) — Raw SQLite, no Room/ORM
+
+Both databases are accessed through `android.database.sqlite` with SQL
+ported verbatim from iOS.
+
+*Why*: ranking formulas, `LIKE`/`ESCAPE` semantics, `ORDER BY` behavior,
+and integer-division decay are behavioral contracts; an ORM abstraction
+adds a translation layer where byte-compatibility is required.
+
+## D-007 (2026-07-19) — Synchronous main-thread engine
+
+All engine and storage work runs synchronously on the main thread, like
+iOS. No coroutine dispatchers for DB access.
+
+*Why*: identical event ordering is a correctness requirement (learn
+hooks, metrics flags, resume-word backspace); the per-keystroke queries
+are microseconds on a 20k-row indexed table. Revisit only with profiler
+evidence, as its own decision.
+
+## D-008 (2026-07-19) — Structural privacy: no INTERNET permission, no backup
+
+The app declares no INTERNET permission and sets
+`android:allowBackup="false"`; both databases live in
+`noBackupFilesDir`.
+
+*Why*: iOS enforces privacy structurally (`RequestsOpenAccess = false`
+⇒ OS-denied network). The Android equivalent is to make network and
+cloud copies impossible by construction, not by promise. Learned data
+dies with the app, matching iOS.
+
+## D-009 (2026-07-19) — Fixed 250 dp; everything renders inside it
+
+The input view is exactly 250 dp and top-aligned. Bubbles, callouts, the
+layout menu, and the settings panel are clamped to render inside the
+view — verified against the iOS geometry, which clamps the same way. No
+popup windows, no `onComputeInsets` manipulation.
+
+*Why*: the height contract is deterministic and host-independent;
+single-window rendering is the most robust IME approach and matches iOS
+exactly.
+
+## D-010 (2026-07-19) — Compose foundation only, no Material
+
+All controls (keys, toggles, radio rows, pills, sheets) are custom-drawn
+to the product design.
+
+*Why*: the design is the product's own (iOS-parity layout and the
+panel's own palette); Material widgets would fight it and add
+theming-behavior coupling.
+
+## D-011 (2026-07-19) — No DI framework, single module
+
+The service constructs and wires everything. One Gradle module.
+
+*Why*: one entry point (the IME service), a handful of singletons,
+lockstep maintenance with an iOS codebase that has no DI either.
+
+## D-012 (2026-07-19) — Preference keys identical to iOS
+
+`SharedPreferences` uses the exact iOS UserDefaults keys
+(`set_*`, `layoutVariant`, `recentEmojis`).
+
+*Why*: one less mapping to document; future cloud sync (Stage 8) can
+treat settings uniformly across platforms.
+
+## D-013 (2026-07-19) — Timing and geometry constants are centralized
+
+Every timing/geometry constant carries the same value as iOS and lives
+in one place per component (layout metrics in `LezgiLayout`, animation
+constants next to their composable), never inlined at call sites twice.
+
+*Why*: the iOS code had to keep mirrored constants in sync manually
+(row spacing in two places); the port should make divergence hard.
+
+## D-014 (2026-07-19) — minSdk 26, targetSdk latest stable
+
+*Why*: Compose requires 21+; variable-font APIs and reliable
+`Paint.hasGlyph` push higher; 26 covers virtually all active devices in
+the target audience while keeping the font-matching options open.
+
+## D-015 (2026-07-19) — Password fields: no learning and no suggestion bar content
+
+In password-type fields (`TYPE_TEXT_VARIATION_PASSWORD` and variants)
+and fields with `IME_FLAG_NO_PERSONALIZED_LEARNING`, learning is fully
+disabled and the bar displays no content of any kind — no predictions,
+no learned words, no next-word suggestions, no idle words. The bar
+itself stays visually present so the fixed-height contract holds.
+
+*Why*: the spec mandates "never learn there"; hiding the bar's content
+prevents leaking previously learned vocabulary into a password screen,
+while keeping the bar area preserves the deterministic keyboard height.
+iOS has no precedent (the OS swaps keyboards for secure fields), so this
+is the closest structural equivalent. Approved 2026-07-19.
+
+## D-016 (2026-07-19) — Return key uses the editor action
+
+For fields with an IME action (Go/Send/Done/Next/Search/…), the return
+key calls `performEditorAction`; only multiline/no-action fields get a
+committed `"\n"`. Model-side effects (learn word, clear sentence
+context, arm Shift) run identically in both cases.
+
+*Why*: platform-required difference — on Android, committing a newline
+does not trigger the field's action; the user-visible behavior (the
+labeled key does what it says) is what parity means here.
+
+## D-017 (2026-07-19) — Android always paints its own keyboard background
+
+On iOS the `system` theme leaves the root transparent over the
+OS-provided blurred keyboard backdrop; only forced themes paint a
+background. Android has no host-provided backdrop — an IME window is
+opaque — so the Android keyboard always paints its background using the
+same stand-in colors iOS uses for forced themes (#D1D3D9 light /
+#2B2B2B dark). The `system` theme resolves those colors from `uiMode`;
+forced themes will pin them (Stage 7).
+
+*Why*: platform-required difference; the chosen colors are the ones iOS
+already matched by eye to the native backdrop, so the visual result is
+identical.
