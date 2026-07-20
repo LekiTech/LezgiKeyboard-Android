@@ -40,6 +40,27 @@ class KeyboardModel {
     /** Keyboard name flashed on the spacebar right after appearance. */
     var showsKeyboardName by mutableStateOf(false)
 
+    // MARK: - Suggestion bar state (fed by the engine from Stage 5;
+    // Stage 4 drives it from scaffolding so the bar is exercisable)
+
+    var suggestions by mutableStateOf(listOf<String>())
+
+    /** Random dictionary words shown while the bar has no real content. */
+    var fallbackSuggestions by mutableStateOf(listOf<String>())
+
+    /**
+     * The raw typed word leading the bar as a literal candidate because
+     * no source recognizes it. Presentation-only marker: the view alone
+     * wraps this word in «…»; the stored value stays undecorated.
+     */
+    var unrecognizedTyped by mutableStateOf<String?>(null)
+
+    /** Displayed suggestions that came from the learned store — the
+     * only ones long-press deletion applies to. */
+    var learnedDisplayWords by mutableStateOf(setOf<String>())
+
+    fun isLearnedSuggestion(display: String): Boolean = display in learnedDisplayWords
+
     private var lastSpaceTapNanos: Long? = null
 
     /**
