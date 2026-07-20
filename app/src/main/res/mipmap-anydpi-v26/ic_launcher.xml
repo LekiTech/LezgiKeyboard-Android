@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive launcher icon generated from AppIcon-1024.png: the flag
+     stripes fill the background layer edge to edge, the keyboard card
+     sits in the foreground inside the mask-safe zone, and the themed
+     (monochrome) layer reuses the keyboard glyph. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>

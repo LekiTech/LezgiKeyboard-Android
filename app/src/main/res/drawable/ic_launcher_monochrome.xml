@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (API 33+): the keyboard glyph centered in the
+     adaptive safe zone. Same line art as ic_panel_keyboard, scaled to
+     leave the mask margins clear. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.55"
+        android:scaleY="0.55"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:pathData="M4,6.75 H20 A1.75,1.75 0 0 1 21.75,8.5 V15.5 A1.75,1.75 0 0 1 20,17.25 H4 A1.75,1.75 0 0 1 2.25,15.5 V8.5 A1.75,1.75 0 0 1 4,6.75 Z"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.5"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M5,9.2 h1.4 v1.4 h-1.4 Z M8.2,9.2 h1.4 v1.4 h-1.4 Z M11.4,9.2 h1.4 v1.4 h-1.4 Z M14.6,9.2 h1.4 v1.4 h-1.4 Z M17.8,9.2 h1.4 v1.4 h-1.4 Z" />
+        <path
+            android:pathData="M7.2,14.6 H16.8"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round" />
+    </group>
+</vector>
