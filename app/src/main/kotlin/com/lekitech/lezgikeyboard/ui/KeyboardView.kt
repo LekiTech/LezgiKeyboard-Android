@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
@@ -38,7 +39,7 @@ fun KeyboardView(
     onSuggestion: (String) -> Unit,
     onSuggestionDelete: (String) -> Unit,
 ) {
-    val colors = KeyboardColors.resolve(isSystemInDarkTheme())
+    val colors = KeyboardColors.resolve(isSystemInDarkTheme(), LocalContext.current)
     Column(modifier = Modifier.fillMaxWidth()) {
         // Transparent overlay strip: part of the window but not of the
         // visible keyboard — the service excludes it from the content
