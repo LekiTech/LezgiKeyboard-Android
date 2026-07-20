@@ -122,6 +122,9 @@ proven on a real device before any keys exist.
   the character committed; a search field renders the magnifier return
   key. Reinstalling the APK deselects the IME (Android behavior) — 
   re-select it before testing.
+- Owner review: the in-keyboard globe key was removed — Android always
+  provides its own switcher, so the key only duplicated it (D-022);
+  the settings gear was redrawn as a proper eight-tooth gear contour.
 
 **Objective**: full static layout with working text input on all three
 character pages.
