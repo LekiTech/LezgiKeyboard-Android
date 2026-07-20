@@ -9,19 +9,24 @@ import androidx.compose.ui.graphics.Color
  * implementation; the background stand-ins are always painted on Android
  * because an IME window has no host-provided backdrop (DECISIONS.md
  * D-017). The palette grows with the stages — only roles in actual use
- * are defined. Theme forcing (Экуь / Мичӏи) arrives with the settings
- * panel; until then resolution follows the system appearance.
+ * are defined. `resolve` takes the *effective* appearance: the caller
+ * derives it from the theme setting (system / forced light / forced
+ * dark), so a forced theme recolors everything instantly and D-017's
+ * always-painted background covers the forced case by construction.
  */
 class KeyboardColors private constructor(
     val keyboardBackground: Color,
     val letterKey: Color,
     val letterKeyPressed: Color,
     val label: Color,
+    val labelTertiary: Color,
     val spaceHint: Color,
     val menuAccent: Color,
     val menuAccentTint: Color,
     val menuCard: Color,
     val menuSecondary: Color,
+    val panelBackground: Color,
+    val panelSeparator: Color,
 ) {
     companion object {
         private val light = KeyboardColors(
@@ -29,11 +34,14 @@ class KeyboardColors private constructor(
             letterKey = Color.White,
             letterKeyPressed = Color(red = 0.82f, green = 0.84f, blue = 0.87f),
             label = Color.Black,
+            labelTertiary = Color(0x4C3C3C43),
             spaceHint = Color(0xFFAEAEB2),
             menuAccent = Color(0xFF5B57E0),
             menuAccentTint = Color(0xFFECEBFB),
             menuCard = Color.White,
             menuSecondary = Color(0xFF6E6E76),
+            panelBackground = Color(0xFFF4F4F8),
+            panelSeparator = Color(0xFFEAEAF1),
         )
 
         /**
@@ -52,11 +60,14 @@ class KeyboardColors private constructor(
                 letterKey = surface(android.R.color.system_neutral1_800, 0xFF303034),
                 letterKeyPressed = surface(android.R.color.system_neutral1_600, 0xFF54565B),
                 label = Color.White,
+                labelTertiary = Color(0x4DEBEBF5),
                 spaceHint = Color(0xFF8E9099),
                 menuAccent = Color(0xFF8B88FF),
                 menuAccentTint = Color(0xFF262541),
                 menuCard = Color(0xFF1F1F24),
                 menuSecondary = Color(0xFF9E9EA7),
+                panelBackground = Color(0xFF151517),
+                panelSeparator = Color(0xFF2C2C33),
             )
         }
 

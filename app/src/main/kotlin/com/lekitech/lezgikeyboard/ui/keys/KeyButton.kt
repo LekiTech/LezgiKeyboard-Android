@@ -50,6 +50,7 @@ fun KeyButton(
     modifier: Modifier = Modifier,
     hideLabel: Boolean = false,
     spaceFlash: Boolean = false,
+    spaceHint: Boolean = true,
 ) {
     // While a character key shows its preview bubble, the key's own
     // label hides underneath it, like the native keyboard. The space
@@ -71,7 +72,7 @@ fun KeyButton(
     ) {
         if (!hideLabel) {
             if (cap == KeyCap.Space) {
-                SpaceContent(spaceFlash, colors)
+                SpaceContent(spaceFlash, spaceHint, colors)
             } else {
                 KeyLabel(cap, returnAction, shiftState, colors)
             }
@@ -81,11 +82,11 @@ fun KeyButton(
 
 /**
  * Space-bar dressing: the «ЛЕЗГ» corner hint (hidden while the name
- * shows; a setting hides it permanently from Stage 7) and the keyboard
+ * shows, and permanently when its setting is off) and the keyboard
  * name «Лезги чӏал» flashed centered after appearance, fading 0.25 s.
  */
 @Composable
-private fun BoxScope.SpaceContent(flash: Boolean, colors: KeyboardColors) {
+private fun BoxScope.SpaceContent(flash: Boolean, hint: Boolean, colors: KeyboardColors) {
     val flashAlpha by animateFloatAsState(
         targetValue = if (flash) 1f else 0f,
         animationSpec = tween(durationMillis = 250),
@@ -98,7 +99,7 @@ private fun BoxScope.SpaceContent(flash: Boolean, colors: KeyboardColors) {
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .padding(end = 6.dp, bottom = 4.dp)
-            .alpha(1f - flashAlpha),
+            .alpha(if (hint) 1f - flashAlpha else 0f),
         style = TextStyle(color = colors.spaceHint, fontSize = hintSize),
     )
     if (flashAlpha > 0.01f) {

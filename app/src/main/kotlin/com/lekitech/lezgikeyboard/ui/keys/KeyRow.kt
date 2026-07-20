@@ -95,6 +95,7 @@ fun KeyRow(
                 hideLabel = model.isSpaceCursorMode ||
                     (pressedIndex == index && calloutOptions == null && cap is KeyCap.Character),
                 spaceFlash = model.showsKeyboardName,
+                spaceHint = model.settings.spaceLabel,
                 colors = colors,
                 modifier = Modifier
                     .offset(x = frames[index].x)
@@ -128,10 +129,14 @@ fun KeyRow(
                         var spaceLastX = down.position.x
                         var spaceLastY = down.position.y
                         var repeatInterval = BACKSPACE_FIRST_REPEAT_MS
+                        // The callout delay is user-adjustable in the
+                        // settings panel; space-cursor mode never arms
+                        // when its setting is off.
                         var deadline: Long? = when {
-                            alternates != null -> now() + CALLOUT_DELAY_MS
+                            alternates != null -> now() + model.settings.calloutDelay.millis
                             cap == KeyCap.Backspace -> now() + HOLD_DELAY_MS
-                            cap == KeyCap.Space -> now() + HOLD_DELAY_MS
+                            cap == KeyCap.Space && model.settings.spaceCursor ->
+                                now() + HOLD_DELAY_MS
                             cap == KeyCap.Settings -> now() + SETTINGS_HOLD_MS
                             else -> null
                         }
@@ -295,9 +300,6 @@ fun KeyRow(
 
 /** Gear long-press delay — fixed, not the callout-delay setting. */
 private const val SETTINGS_HOLD_MS = 350L
-
-/** Callout hold delay; user-adjustable from Stage 7 (0.2/0.3/0.45 s). */
-private const val CALLOUT_DELAY_MS = 300L
 
 /** Backspace repeat and space-cursor activation hold. */
 private const val HOLD_DELAY_MS = 400L

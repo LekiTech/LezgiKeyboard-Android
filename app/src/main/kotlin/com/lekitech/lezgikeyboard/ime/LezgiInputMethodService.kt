@@ -1,11 +1,19 @@
 package com.lekitech.lezgikeyboard.ime
 
+import android.content.ClipDescription
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.KeyEvent
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputContentInfo
+import androidx.core.content.FileProvider
+import com.lekitech.lezgikeyboard.BuildConfig
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
@@ -18,9 +26,12 @@ import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.model.TextEditor
+import com.lekitech.lezgikeyboard.settings.KeyboardSettings
+import com.lekitech.lezgikeyboard.stickers.StickerPack
 import com.lekitech.lezgikeyboard.store.LearnedWords
 import com.lekitech.lezgikeyboard.store.WordSuggestions
 import com.lekitech.lezgikeyboard.ui.KeyboardView
+import java.io.File
 import kotlin.math.abs
 
 /**
@@ -48,8 +59,25 @@ class LezgiInputMethodService : InputMethodService() {
         model.layoutVariant = LayoutVariant.entries.firstOrNull {
             it.prefValue == preferences.getString(LAYOUT_VARIANT_KEY, null)
         } ?: LayoutVariant.CLASSIC
+        model.recentEmojis = preferences.getString(RECENT_EMOJIS_KEY, null)
+            ?.split('\n')?.filter { it.isNotEmpty() }
+            ?: emptyList()
         model.wordSuggestions = WordSuggestions.open(this)
         model.learnedWords = LearnedWords.open(this)
+        // After the stores: updateSettings syncs the learned store's
+        // visibility threshold with the saved learning speed.
+        model.updateSettings(KeyboardSettings.load(preferences))
+        // Local quality metrics baseline: visible in logcat, debug
+        // builds only; nothing is transmitted (spec §11).
+        if (BuildConfig.DEBUG) {
+            Log.d("kb-metrics", model.metricsLine())
+        }
+    }
+
+    /** Applies a panel change and persists it under the iOS keys (D-012). */
+    private fun applySettings(settings: KeyboardSettings) {
+        model.updateSettings(settings)
+        settings.save(preferences)
     }
 
     private var inputView: View? = null
@@ -86,6 +114,10 @@ class LezgiInputMethodService : InputMethodService() {
                 },
                 onSuggestion = ::acceptSuggestion,
                 onSuggestionDelete = { model.deleteLearnedWord(it, textEditor) },
+                onUpdateSettings = ::applySettings,
+                onLearnedReset = { model.resetLearnedWords(textEditor) },
+                onEmojiInsert = ::insertEmoji,
+                onStickerInsert = ::insertSticker,
             )
         }
         return view
@@ -97,6 +129,7 @@ class LezgiInputMethodService : InputMethodService() {
         model.autocapMode = EditorState.autocapMode(editorInfo)
         model.needsGlobe = needsGlobeKey()
         model.isPrivateField = EditorState.isPrivateField(editorInfo)
+        model.stickersAvailable = EditorState.acceptsStickers(editorInfo)
         model.updateShiftFromContext(textEditor)
         // Keyboard name flashed on the spacebar for 1.5 s per appearance
         model.showsKeyboardName = true
@@ -186,12 +219,13 @@ class LezgiInputMethodService : InputMethodService() {
 
     /**
      * Accepting a suggestion replaces the active prefix with the word
-     * plus a trailing space. The prefix length comes from whichever
-     * source saw more — the host context or the locally composed word
-     * (the context lags behind fast typing) — and the bar refreshes in
-     * the tap handler itself: hosts may not echo the keyboard's own
-     * edits promptly, and the stale context cannot resurface the word
-     * because the prefix comes from the composed word, not the host.
+     * plus a trailing space (user-disableable in the settings panel).
+     * The prefix length comes from whichever source saw more — the
+     * host context or the locally composed word (the context lags
+     * behind fast typing) — and the bar refreshes in the tap handler
+     * itself: hosts may not echo the keyboard's own edits promptly,
+     * and the stale context cannot resurface the word because the
+     * prefix comes from the composed word, not the host.
      */
     private fun acceptSuggestion(word: String) {
         // The previous word must be captured before the prefix is
@@ -200,10 +234,75 @@ class LezgiInputMethodService : InputMethodService() {
         val prefixLength =
             maxOf(model.wordPrefix(textEditor).length, model.composedWord.length)
         repeat(prefixLength) { textEditor.deleteBackward() }
-        textEditor.insertText("$word ")
-        model.recordPickedSuggestion(word, previous, insertedSpace = true)
+        val addsSpace = model.settings.autoSpaceAfterSuggestion
+        textEditor.insertText(if (addsSpace) "$word " else word)
+        model.recordPickedSuggestion(word, previous, insertedSpace = addsSpace)
         if (model.shiftState == ShiftState.ONCE) model.shiftState = ShiftState.OFF
         model.updateSuggestions(textEditor)
+    }
+
+    /**
+     * Inserts an emoji from the page and records it into recents —
+     * persisted immediately under the iOS `recentEmojis` key (D-012;
+     * newline-joined, an emoji sequence never contains a newline). The
+     * host echoes the edit through `onUpdateSelection`, which resyncs
+     * the composed word and the bar.
+     */
+    private fun insertEmoji(emoji: String) {
+        textEditor.insertText(emoji)
+        model.recordRecentEmoji(emoji)
+        preferences.edit()
+            .putString(RECENT_EMOJIS_KEY, model.recentEmojis.joinToString("\n"))
+            .apply()
+    }
+
+    // MARK: - Sticker insertion (Commit Content API, D-031)
+
+    /**
+     * Commits a sticker image into the focused editor. The pack ships
+     * as WebP; when the editor accepts only PNG the image is converted
+     * once and cached. The cache copy is served through the scoped
+     * FileProvider with a read grant — the standard image-keyboard
+     * path (the same one Gboard uses), which iOS keyboards have no
+     * equivalent of.
+     */
+    private fun insertSticker(name: String) {
+        val mimeTypes = currentInputEditorInfo?.contentMimeTypes ?: return
+        val ic = currentInputConnection ?: return
+        val webpAccepted = mimeTypes.any {
+            ClipDescription.compareMimeTypes("image/webp", it)
+        }
+        val (file, mime) = stickerFile(name, webpAccepted) ?: return
+        val uri = FileProvider.getUriForFile(this, "$packageName.stickers", file)
+        val info = InputContentInfo(uri, ClipDescription(name, arrayOf(mime)))
+        ic.commitContent(info, InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null)
+    }
+
+    /** The shareable cache copy of a sticker, in a mime the editor takes. */
+    private fun stickerFile(name: String, webpAccepted: Boolean): Pair<File, String>? = try {
+        val dir = File(cacheDir, "stickers").apply { mkdirs() }
+        if (webpAccepted) {
+            val file = File(dir, "$name.webp")
+            if (!file.exists()) {
+                assets.open(StickerPack.assetPath(name)).use { input ->
+                    file.outputStream().use { input.copyTo(it) }
+                }
+            }
+            file to "image/webp"
+        } else {
+            val file = File(dir, "$name.png")
+            if (!file.exists()) {
+                val bitmap = assets.open(StickerPack.assetPath(name))
+                    .use(BitmapFactory::decodeStream) ?: return null
+                file.outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                bitmap.recycle()
+            }
+            file to "image/png"
+        }
+    } catch (_: Exception) {
+        null
     }
 
     // MARK: - Input-method switching (globe key, D-027)
@@ -290,5 +389,6 @@ class LezgiInputMethodService : InputMethodService() {
 
 }
 
-/** iOS-parity preference key (D-012). */
+/** iOS-parity preference keys (D-012). */
 private const val LAYOUT_VARIANT_KEY = "layoutVariant"
+private const val RECENT_EMOJIS_KEY = "recentEmojis"

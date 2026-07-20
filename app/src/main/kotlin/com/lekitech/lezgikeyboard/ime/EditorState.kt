@@ -1,5 +1,6 @@
 package com.lekitech.lezgikeyboard.ime
 
+import android.content.ClipDescription
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
@@ -10,6 +11,21 @@ import com.lekitech.lezgikeyboard.model.AutocapMode
  * flag joins in Stage 5 with the suggestion pipeline.
  */
 object EditorState {
+
+    /**
+     * Whether the field accepts sticker images through the Commit
+     * Content API (D-031): it must declare a content mime type
+     * matching the pack's WebP — or PNG, which the service converts
+     * to on the fly. Fields that declare nothing (all plain text
+     * fields, password fields) simply get no sticker section.
+     */
+    fun acceptsStickers(info: EditorInfo?): Boolean {
+        val mimeTypes = info?.contentMimeTypes ?: return false
+        return mimeTypes.any {
+            ClipDescription.compareMimeTypes("image/webp", it) ||
+                ClipDescription.compareMimeTypes("image/png", it)
+        }
+    }
 
     /**
      * Password and no-personalized-learning fields (D-015): the bar

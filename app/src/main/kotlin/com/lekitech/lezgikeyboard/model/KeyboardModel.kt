@@ -8,6 +8,7 @@ import com.lekitech.lezgikeyboard.layout.KeyboardPage
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.settings.KeyboardSettings
 import com.lekitech.lezgikeyboard.store.LearnedWords
 import com.lekitech.lezgikeyboard.store.WordSuggestions
 
@@ -47,6 +48,33 @@ class KeyboardModel {
 
     /** Keyboard name flashed on the spacebar right after appearance. */
     var showsKeyboardName by mutableStateOf(false)
+
+    /** The in-keyboard settings panel (opened by the gear key) is visible. */
+    var showsSettings by mutableStateOf(false)
+
+    /**
+     * User-adjustable behavior (settings panel, Stage 7); defaults keep
+     * the pre-settings behavior. The service loads and persists (the
+     * model stays storage-free); every change goes through
+     * `updateSettings` so its model-side effects apply.
+     */
+    var settings by mutableStateOf(KeyboardSettings())
+        private set
+
+    /**
+     * Applies a settings change; effects that have model-side state are
+     * synced here so the change is felt immediately. Persistence is the
+     * caller's concern.
+     */
+    fun updateSettings(new: KeyboardSettings) {
+        settings = new
+        learnedWords?.minVisibleUses = new.learnSpeed.minUses
+        if (!new.wordSuggestions) {
+            suggestions = emptyList()
+            learnedDisplayWords = emptySet()
+            fallbackSuggestions = emptyList()
+        }
+    }
 
     // MARK: - Suggestion engine
 
@@ -111,7 +139,49 @@ class KeyboardModel {
         learnWordCommittedByHostClear(editor)
         composedWord = wordPrefix(editor)
         lastCompletedWord = previousWord(editor)
+        // The cursor moved on from the word just accepted from the bar —
+        // the acceptance settles as final (metrics, best effort).
+        if (pendingAcceptedWord != null && lastCompletedWord != pendingAcceptedWord) {
+            pendingAcceptedWord = null
+        }
     }
+
+    // MARK: - Local quality metrics
+
+    /**
+     * Whether the word being composed has had at least one predictive
+     * candidate (beyond the quoted literal) on the bar. One opportunity
+     * is counted per completed word, not per suggestion refresh; the
+     * flag resets when the word completes or the composition is
+     * abandoned (prefix back to empty).
+     */
+    private var wordHadPredictions = false
+
+    /**
+     * The word most recently accepted from the bar (with its trailing
+     * space), pending until any other word completes. Going back into
+     * it counts as a correction — event-based, no timeout.
+     */
+    private var pendingAcceptedWord: String? = null
+
+    /**
+     * Metrics for one manually completed word: every manual completion
+     * counts, and predictive candidates shown during composition close
+     * as one opportunity that was passed over. Completing a word also
+     * settles any pending acceptance as final (the user moved on).
+     */
+    private fun recordManualCompletion() {
+        learnedWords?.bumpMetric(LearnedWords.Metric.TYPED_MANUALLY)
+        if (wordHadPredictions) {
+            learnedWords?.bumpMetric(LearnedWords.Metric.OPPORTUNITIES)
+            learnedWords?.bumpMetric(LearnedWords.Metric.IGNORED)
+        }
+        wordHadPredictions = false
+        pendingAcceptedWord = null
+    }
+
+    /** Metrics line for the DEBUG startup log. */
+    fun metricsLine(): String = learnedWords?.metricsSummary() ?: "no learned store"
 
     /**
      * Sending a message usually clears the field without the word ever
@@ -126,6 +196,7 @@ class KeyboardModel {
      */
     private fun learnWordCommittedByHostClear(editor: TextEditor) {
         if (composedWord.isEmpty() || editor.hasText() || isPrivateField) return
+        recordManualCompletion()
         learnedWords?.learn(composedWord, lastCompletedWord, picked = false)
     }
 
@@ -138,6 +209,7 @@ class KeyboardModel {
         if (isPrivateField) return
         val word = wordPrefix(editor)
         if (word.isEmpty()) return
+        recordManualCompletion()
         learnedWords?.learn(word, previousWord(editor), picked = false)
         lastCompletedWord = word
     }
@@ -187,20 +259,36 @@ class KeyboardModel {
             unrecognizedTyped = null
             return
         }
+        // Master switch: with word suggestions off the bar shows
+        // nothing (learning itself continues — a separate concern).
+        if (!settings.wordSuggestions) {
+            suggestions = emptyList()
+            learnedDisplayWords = emptySet()
+            fallbackSuggestions = emptyList()
+            unrecognizedTyped = null
+            return
+        }
         val prefix = composedWord
         if (prefix.isEmpty()) {
             // With no active prefix, suggest likely next words from the
             // learned bigrams of the last completed word; the bar falls
             // back to the random trio when there are none.
-            val nextWords = lastCompletedWord
-                ?.let { learnedWords?.nextWords(it) }
-                .orEmpty()
+            val nextWords = if (settings.nextWordSuggestions) {
+                lastCompletedWord?.let { learnedWords?.nextWords(it) }.orEmpty()
+            } else {
+                emptyList()
+            }
             val display = nextWords.map { displayForm(it, "", editor) }
             val isIdle = display.isEmpty()
             if (isIdle && !barWasIdle) {
                 fallbackWords = wordSuggestions?.randomWords(3) ?: emptyList()
             }
             barWasIdle = isIdle
+            // No active composition: whatever opportunity was open was
+            // either consumed by a completion hook or abandoned with
+            // the erased word — either way the flag must not leak into
+            // the next word (metrics).
+            wordHadPredictions = false
             fallbackSuggestions = fallbackWords.map { displayForm(it, "", editor) }
             unrecognizedTyped = null
             suggestions = display
@@ -240,6 +328,10 @@ class KeyboardModel {
             suggestions = display
         }
         learnedDisplayWords = learnedSet
+        // Metrics: the composed word has seen at least one predictive
+        // candidate (the quoted literal alone does not count) — one
+        // opportunity per word, consumed by the completion hooks.
+        if (display.isNotEmpty()) wordHadPredictions = true
     }
 
     /**
@@ -268,10 +360,25 @@ class KeyboardModel {
      * signal than typing. `previous` must be captured before the prefix
      * is replaced. With the trailing space inserted the word is
      * completed and next-word suggestions chain from it; without it
-     * (auto-space setting, Stage 7) it stays the composed prefix.
+     * (auto-space setting off) it stays the composed prefix.
      */
     fun recordPickedSuggestion(word: String, previous: String?, insertedSpace: Boolean) {
         if (!isPrivateField) learnedWords?.learn(word, previous, picked = true)
+        // Metrics: tapping the quoted literal confirms the user's own
+        // word — any predictions shown were passed over, so it counts
+        // as a manual completion. Tapping a real prediction is an
+        // acceptance; it stays pending until another word completes,
+        // and going back into it counts as a correction.
+        if (word == unrecognizedTyped) {
+            recordManualCompletion()
+        } else {
+            learnedWords?.bumpMetric(LearnedWords.Metric.ACCEPTED)
+            if (wordHadPredictions) {
+                learnedWords?.bumpMetric(LearnedWords.Metric.OPPORTUNITIES)
+            }
+            wordHadPredictions = false
+            if (insertedSpace) pendingAcceptedWord = word
+        }
         if (insertedSpace) {
             composedWord = ""
             lastCompletedWord = word
@@ -289,9 +396,36 @@ class KeyboardModel {
         updateSuggestions(editor)
     }
 
+    /**
+     * Wipes the whole learned store (words and pairs) and refreshes
+     * the bar. Triggered from the settings panel.
+     */
+    fun resetLearnedWords(editor: TextEditor) {
+        learnedWords?.reset()
+        lastCompletedWord = null
+        updateSuggestions(editor)
+    }
+
+    // MARK: - Settings panel data
+
+    /**
+     * Saved words for the settings dictionary page: genuinely
+     * user-added vocabulary only — words past the learned visibility
+     * threshold that are absent from the bundled dictionary (the same
+     * exact lookup the bar's literal candidate uses). The learning
+     * store also keeps records for dictionary words — frequency and
+     * bigram signals — but those are internal and never listed. The
+     * page counter derives from this same list, so the count and the
+     * list cannot disagree. The limit matches the store's own row cap,
+     * so the set is complete.
+     */
+    fun savedWords(limit: Int = 5000): List<String> =
+        learnedWords?.topWords(limit).orEmpty()
+            .filter { wordSuggestions?.contains(it) != true }
+
     /** Re-rolls the idle-bar words; called once per keyboard appearance. */
     fun refreshFallbackSuggestions(editor: TextEditor) {
-        if (isPrivateField) {
+        if (isPrivateField || !settings.wordSuggestions) {
             fallbackWords = emptyList()
             fallbackSuggestions = emptyList()
             return
@@ -299,6 +433,28 @@ class KeyboardModel {
         fallbackWords = wordSuggestions?.randomWords(3) ?: emptyList()
         fallbackSuggestions = fallbackWords.map { displayForm(it, "", editor) }
         barWasIdle = true
+    }
+
+    // MARK: - Emoji
+
+    /**
+     * Most recently used emoji, newest first (limit 24, move-to-front
+     * dedup). The service loads and persists under the iOS
+     * `recentEmojis` preference key (D-012) — not in the learning
+     * database.
+     */
+    var recentEmojis by mutableStateOf(listOf<String>())
+
+    /**
+     * Whether the focused field accepts sticker images through the
+     * Commit Content API — decides whether the emoji page shows the
+     * sticker section (D-031). Set by the service per field.
+     */
+    var stickersAvailable by mutableStateOf(false)
+
+    fun recordRecentEmoji(emoji: String) {
+        recentEmojis =
+            (listOf(emoji) + recentEmojis.filter { it != emoji }).take(RECENT_EMOJIS_LIMIT)
     }
 
     private var lastSpaceTapNanos: Long? = null
@@ -376,12 +532,13 @@ class KeyboardModel {
             }
 
             // Quick double space after a word turns into ". " with a
-            // capital next (user-disableable from Stage 7)
+            // capital next (user-disableable in the settings panel)
             KeyCap.Space -> {
                 val now = System.nanoTime()
                 val last = lastSpaceTapNanos
                 val before = editor.textBeforeCursor(2)
-                if (last != null && now - last < 350_000_000L &&
+                if (settings.doubleSpacePeriod &&
+                    last != null && now - last < 350_000_000L &&
                     before != null && before.length >= 2 && before.last() == ' ' &&
                     before[before.length - 2].isLetterOrDigit()
                 ) {
@@ -430,6 +587,14 @@ class KeyboardModel {
                 }
                 editor.deleteBackward()
                 if (resumedWord != null) {
+                    // Metrics: going back into the word just accepted
+                    // from the bar means the suggestion did not survive
+                    // contact with the user — a correction, however
+                    // much time has passed.
+                    if (resumedWord == pendingAcceptedWord) {
+                        learnedWords?.bumpMetric(LearnedWords.Metric.CORRECTED)
+                    }
+                    pendingAcceptedWord = null
                     composedWord = resumedWord
                 } else if (composedWord.isNotEmpty()) {
                     composedWord = composedWord.dropLast(1)
@@ -446,10 +611,12 @@ class KeyboardModel {
             KeyCap.Symbols -> page = KeyboardPage.SYMBOLS
             KeyCap.Letters -> page = KeyboardPage.LETTERS
 
-            // The emoji page arrives with Stage 8, the settings panel
-            // with Stage 7; the globe never reaches the model (the
-            // service switches input methods directly).
-            KeyCap.Emoji, KeyCap.Settings, KeyCap.Globe -> Unit
+            // The gear opens the in-keyboard settings panel, the emoji
+            // key the fullscreen emoji page; the globe never reaches
+            // the model (the service switches input methods directly).
+            KeyCap.Settings -> showsSettings = true
+            KeyCap.Emoji -> page = KeyboardPage.EMOJI
+            KeyCap.Globe -> Unit
         }
     }
 
@@ -498,4 +665,8 @@ class KeyboardModel {
     /** Characters that finish a word — the iOS separator set. */
     private val wordSeparators =
         " \t\n.,!?;:\"'()[]{}—–-".toSet()
+
+    private companion object {
+        const val RECENT_EMOJIS_LIMIT = 24
+    }
 }
