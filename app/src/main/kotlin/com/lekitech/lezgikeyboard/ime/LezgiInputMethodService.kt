@@ -10,6 +10,7 @@ import android.view.inputmethod.ExtractedTextRequest
 import androidx.compose.ui.platform.ComposeView
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
+import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.TextEditor
@@ -43,6 +44,8 @@ class LezgiInputMethodService : InputMethodService() {
         } ?: LayoutVariant.CLASSIC
     }
 
+    private var inputView: View? = null
+
     override fun onCreateInputView(): View {
         // Compose resolves the window Recomposer from the window root
         // (the decor view), not from the ComposeView, so the lifecycle
@@ -50,6 +53,7 @@ class LezgiInputMethodService : InputMethodService() {
         // window traversal aborts and the keyboard never appears.
         window?.window?.decorView?.let(imeLifecycleOwner::attach)
         val view = ComposeView(this)
+        inputView = view
         imeLifecycleOwner.attach(view)
         view.setContent {
             KeyboardView(
@@ -102,6 +106,29 @@ class LezgiInputMethodService : InputMethodService() {
     // breaking the fixed-height contract. The keyboard is always just the
     // keyboard (DECISIONS.md D-018).
     override fun onEvaluateFullscreenMode(): Boolean = false
+
+    /**
+     * The window's top strip (`OVERLAY_HEADROOM`) exists only for
+     * transient overlays: the host app lays out against the keyboard
+     * content below it, and touches in the strip pass through to the
+     * app — so the visible keyboard keeps the iOS 250 dp contract
+     * while previews and callouts float above it (DECISIONS.md D-025).
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        val view = inputView ?: return
+        val location = IntArray(2)
+        view.getLocationInWindow(location)
+        val stripPx = (LezgiLayout.OVERLAY_HEADROOM * resources.displayMetrics.density).toInt()
+        val contentTop = location[1] + stripPx
+        outInsets.contentTopInsets = contentTop
+        outInsets.visibleTopInsets = contentTop
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+        // Everything below the strip stays touchable, including the
+        // framework's own navigation band under the input view.
+        val decor = window?.window?.decorView ?: return
+        outInsets.touchableRegion.set(0, contentTop, decor.width, decor.height)
+    }
 
     override fun onDestroy() {
         imeLifecycleOwner.onDestroy()

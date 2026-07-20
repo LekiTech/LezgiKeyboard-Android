@@ -36,21 +36,26 @@ fun KeyboardView(
     onLayoutVariant: (LayoutVariant) -> Unit,
 ) {
     val colors = KeyboardColors.resolve(isSystemInDarkTheme())
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.keyboardBackground)
-            .padding(bottom = systemBottomReserve()),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Transparent overlay strip: part of the window but not of the
+        // visible keyboard — the service excludes it from the content
+        // and touchable insets (D-025), so the host app lays out
+        // against the 250 dp contract and taps here pass through.
+        // Top-row previews and callouts draw upward into it.
+        Spacer(modifier = Modifier.height(LezgiLayout.OVERLAY_HEADROOM.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.keyboardBackground)
+                .padding(bottom = systemBottomReserve()),
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height((LezgiLayout.OVERLAY_HEADROOM + LezgiLayout.KEYBOARD_HEIGHT).dp),
+                .height(LezgiLayout.KEYBOARD_HEIGHT.dp),
         ) {
-            // Headroom for top-row previews and callouts (D-024), then
-            // the suggestion bar area — reserved from day one so the
+            // Suggestion bar area: reserved from day one so the
             // geometry never changes when content arrives (Stage 4).
-            Spacer(modifier = Modifier.height(LezgiLayout.OVERLAY_HEADROOM.dp))
             Spacer(modifier = Modifier.height(LezgiLayout.SUGGESTION_BAR_HEIGHT.dp))
             Spacer(modifier = Modifier.height(LezgiLayout.BAR_GAP.dp))
 
@@ -75,6 +80,7 @@ fun KeyboardView(
                     )
                 }
             }
+        }
         }
     }
 }

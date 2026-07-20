@@ -97,7 +97,9 @@ popup windows, no `onComputeInsets` manipulation.
 
 *Why*: the height contract is deterministic and host-independent;
 single-window rendering is the most robust IME approach and matches iOS
-exactly.
+exactly. Refined by D-025: a transparent, touch-transparent top strip
+carries transient overlays via `onComputeInsets`; the *visible*
+keyboard stays fixed-height.
 
 ## D-010 (2026-07-19) — Compose foundation only, no Material
 
@@ -275,7 +277,7 @@ deliberate divergences are recorded here. Mechanical copying of iOS
 where Android is genuinely better is as wrong as silent Android-isms
 where parity matters.
 
-## D-024 (2026-07-19) — Overlay headroom above the suggestion bar
+## D-024 (2026-07-19) — Overlay headroom above the suggestion bar — SUPERSEDED by D-025
 
 The keyboard reserves 21 dp of extra space above the suggestion-bar
 area (total content 271 dp vs the iOS 250), so top-row key previews
@@ -291,3 +293,24 @@ before implementation: the keyboard silhouette is 21 dp taller than
 iOS (most noticeable in landscape); the divergence must be remembered
 against §3. The bar *content* area is untouched — exactly 36 dp with
 an 8 dp gap, so the Stage 4 suggestion-bar spec applies unchanged.
+
+## D-025 (2026-07-19) — Transient overlays float in a pass-through strip
+
+The IME window keeps a 21 dp transparent strip above the keyboard
+content, excluded from the host-facing insets: `onComputeInsets` sets
+`contentTopInsets`/`visibleTopInsets` below the strip and restricts
+`touchableInsets` to a region starting there, so the app lays out
+against the 250 dp contract and taps in the strip pass through to it.
+Top-row key previews and callouts draw upward into the strip at their
+natural offsets, floating over app content — the native Android
+preview behavior (Gboard works the same way).
+
+*Why*: supersedes D-024 (permanent 21 dp headroom): same overlay
+freedom without costing the app any space or diverging the visible
+silhouette from iOS. This is the one sanctioned use of
+`onComputeInsets` (D-009 refinement); the touchable region must always
+cover everything below the strip, including the framework's IME
+navigation band — verified by a pass-through tap test. iOS cannot do
+this (`UIInputView` clips at its bounds), which is why iOS clamps
+top-row callouts downward instead; the clamp remains in code as a
+safety net.
