@@ -19,6 +19,9 @@ interface TextEditor {
      */
     fun textBeforeCursor(maxLength: Int): CharSequence?
 
+    /** Whether the document contains any text at all. */
+    fun hasText(): Boolean
+
     /** Moves the caret by `offset` characters (negative = left). */
     fun moveCursor(offset: Int)
 

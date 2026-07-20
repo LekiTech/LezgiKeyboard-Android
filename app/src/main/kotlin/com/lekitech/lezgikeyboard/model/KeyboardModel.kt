@@ -8,6 +8,7 @@ import com.lekitech.lezgikeyboard.layout.KeyboardPage
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.store.LearnedWords
 import com.lekitech.lezgikeyboard.store.WordSuggestions
 
 /**
@@ -52,6 +53,17 @@ class KeyboardModel {
     /** The bundled dictionary; null degrades to a bar without candidates. */
     var wordSuggestions: WordSuggestions? = null
 
+    /** The personal learned store; null degrades to dictionary-only. */
+    var learnedWords: LearnedWords? = null
+
+    /**
+     * The most recent completed word of the current sentence, tracked
+     * synchronously (the host context lags) — the source for next-word
+     * suggestions and bigram learning. Null right after `. ! ?` or
+     * return, so neither ever crosses a sentence boundary.
+     */
+    private var lastCompletedWord: String? = null
+
     /**
      * Password and no-personalized-learning fields: the bar shows no
      * content of any kind and nothing is ever learned (D-015).
@@ -94,9 +106,60 @@ class KeyboardModel {
 
     fun isLearnedSuggestion(display: String): Boolean = display in learnedDisplayWords
 
-    /** Realigns the local buffer once the host has confirmed its state. */
+    /** Realigns the local buffers once the host has confirmed its state. */
     fun syncComposedWord(editor: TextEditor) {
+        learnWordCommittedByHostClear(editor)
         composedWord = wordPrefix(editor)
+        lastCompletedWord = previousWord(editor)
+    }
+
+    /**
+     * Sending a message usually clears the field without the word ever
+     * getting a trailing space, so it would never be learned. The clear
+     * is visible: the host's edit arrives with a completely empty
+     * document while the composed word is still non-empty — that
+     * commits it. Deliberately narrow: cursor moves and edits that
+     * leave text never trigger, and the keyboard's own edits clear
+     * `composedWord` synchronously first. Rare false positives (a
+     * search field's clear button) are absorbed by the visibility
+     * threshold.
+     */
+    private fun learnWordCommittedByHostClear(editor: TextEditor) {
+        if (composedWord.isEmpty() || editor.hasText() || isPrivateField) return
+        learnedWords?.learn(composedWord, lastCompletedWord, picked = false)
+    }
+
+    /**
+     * Records the word before the cursor as completed, together with
+     * the word preceding it in the same sentence. Called before the
+     * terminator (space / return / punctuation) is inserted.
+     */
+    private fun learnCompletedWord(editor: TextEditor) {
+        if (isPrivateField) return
+        val word = wordPrefix(editor)
+        if (word.isEmpty()) return
+        learnedWords?.learn(word, previousWord(editor), picked = false)
+        lastCompletedWord = word
+    }
+
+    /**
+     * The completed word right before the one being typed, within the
+     * same sentence — bigrams never cross a boundary (`. ! ?` or a new
+     * line cut the context first). Null when the host truncates the
+     * context short.
+     */
+    fun previousWord(editor: TextEditor): String? {
+        val full = editor.textBeforeCursor(256)?.toString() ?: return null
+        if (full.isEmpty()) return null
+        val cut = full.indexOfLast { it in ".!?\n" }
+        val context = if (cut >= 0) full.substring(cut + 1) else full
+        val tokens = context.split(*wordSeparators.toCharArray()).filter { it.isNotEmpty() }
+        val endsWithSeparator = full.last() in wordSeparators
+        return when {
+            endsWithSeparator -> tokens.lastOrNull()
+            tokens.size >= 2 -> tokens[tokens.size - 2]
+            else -> null
+        }
     }
 
     /**
@@ -126,39 +189,57 @@ class KeyboardModel {
         }
         val prefix = composedWord
         if (prefix.isEmpty()) {
-            // Next-word suggestions from learned bigrams join in
-            // Stage 6; until then an empty prefix is always idle.
-            if (!barWasIdle) {
+            // With no active prefix, suggest likely next words from the
+            // learned bigrams of the last completed word; the bar falls
+            // back to the random trio when there are none.
+            val nextWords = lastCompletedWord
+                ?.let { learnedWords?.nextWords(it) }
+                .orEmpty()
+            val display = nextWords.map { displayForm(it, "", editor) }
+            val isIdle = display.isEmpty()
+            if (isIdle && !barWasIdle) {
                 fallbackWords = wordSuggestions?.randomWords(3) ?: emptyList()
             }
-            barWasIdle = true
+            barWasIdle = isIdle
             fallbackSuggestions = fallbackWords.map { displayForm(it, "", editor) }
             unrecognizedTyped = null
-            suggestions = emptyList()
-            learnedDisplayWords = emptySet()
+            suggestions = display
+            learnedDisplayWords = display.toSet()
             return
         }
         barWasIdle = false
         fallbackSuggestions = fallbackWords.map { displayForm(it, "", editor) }
 
-        val merged = mutableListOf<String>()
-        val seen = mutableSetOf<String>()
+        // Learned candidates come first; the dictionary fills the
+        // remaining slots (the ordering-level merge is the only
+        // sanctioned interaction between the sources).
+        val learned = learnedWords?.suggestions(prefix, previousWord(editor)).orEmpty()
+        val merged = learned.toMutableList()
+        val seen = merged.map { it.lowercase() }.toMutableSet()
         for (word in wordSuggestions?.suggestions(prefix) ?: emptyList()) {
             if (seen.add(word.lowercase())) merged.add(word)
         }
-        val display = merged.take(3).map { displayForm(it, prefix, editor) }
+        val display = mutableListOf<String>()
+        val learnedSet = mutableSetOf<String>()
+        merged.take(3).forEachIndexed { index, word ->
+            val form = displayForm(word, prefix, editor)
+            display.add(form)
+            if (index < learned.size) learnedSet.add(form)
+        }
 
-        // Native-style literal candidate: a typed word unknown to the
-        // dictionary (and, from Stage 6, not a visible learned word)
-        // leads the bar exactly as typed; the view alone adds «…».
-        if (wordSuggestions?.contains(prefix) != true) {
+        // Native-style literal candidate: a typed word unknown to BOTH
+        // sources leads the bar exactly as typed; the view alone adds
+        // «…». A below-threshold learned word still counts as unknown.
+        if (wordSuggestions?.contains(prefix) != true &&
+            learnedWords?.isRecognized(prefix) != true
+        ) {
             unrecognizedTyped = prefix
             suggestions = listOf(prefix) + display.take(2)
         } else {
             unrecognizedTyped = null
             suggestions = display
         }
-        learnedDisplayWords = emptySet()
+        learnedDisplayWords = learnedSet
     }
 
     /**
@@ -183,13 +264,29 @@ class KeyboardModel {
     }
 
     /**
-     * Records a suggestion chosen from the bar. With the trailing space
-     * inserted the word is completed; without it (auto-space setting,
-     * Stage 7) the word stays the composed prefix. Learning weights
-     * join in Stage 6.
+     * Records a suggestion chosen from the bar — a stronger learning
+     * signal than typing. `previous` must be captured before the prefix
+     * is replaced. With the trailing space inserted the word is
+     * completed and next-word suggestions chain from it; without it
+     * (auto-space setting, Stage 7) it stays the composed prefix.
      */
-    fun recordPickedSuggestion(word: String, insertedSpace: Boolean) {
-        composedWord = if (insertedSpace) "" else word
+    fun recordPickedSuggestion(word: String, previous: String?, insertedSpace: Boolean) {
+        if (!isPrivateField) learnedWords?.learn(word, previous, picked = true)
+        if (insertedSpace) {
+            composedWord = ""
+            lastCompletedWord = word
+        } else {
+            composedWord = word
+        }
+    }
+
+    /**
+     * Removes a learned word chosen from the bar; the bundled
+     * dictionary keeps suggesting its own entries as usual.
+     */
+    fun deleteLearnedWord(display: String, editor: TextEditor) {
+        learnedWords?.delete(display)
+        updateSuggestions(editor)
     }
 
     /** Re-rolls the idle-bar words; called once per keyboard appearance. */
@@ -253,6 +350,7 @@ class KeyboardModel {
 
         when (cap) {
             is KeyCap.Character -> {
+                if (cap.text in wordTerminators) learnCompletedWord(editor)
                 val text =
                     if (isShifted) LezgiLayout.applyCase(cap.text, isCapsLock) else cap.text
                 editor.insertText(text)
@@ -262,6 +360,8 @@ class KeyboardModel {
                     composedWord += text
                 }
                 if (shiftState == ShiftState.ONCE) shiftState = ShiftState.OFF
+                // Sentence-ending punctuation cuts the next-word context
+                if (cap.text in sentenceEnders) lastCompletedWord = null
                 // Punctuation on the numbers/symbols pages returns to the
                 // letters page, like the native keyboard; sentence-ending
                 // marks capitalize the next letter
@@ -289,7 +389,9 @@ class KeyboardModel {
                     editor.insertText(". ")
                     if (shiftState != ShiftState.CAPS_LOCK) shiftState = ShiftState.ONCE
                     lastSpaceTapNanos = null
+                    lastCompletedWord = null  // ". " ends the sentence
                 } else {
+                    learnCompletedWord(editor)
                     editor.insertText(" ")
                     lastSpaceTapNanos = now
                 }
@@ -297,8 +399,10 @@ class KeyboardModel {
             }
 
             KeyCap.Return -> {
+                learnCompletedWord(editor)
                 editor.performReturn()
                 composedWord = ""
+                lastCompletedWord = null  // a new line starts a new sentence
                 // A new paragraph starts a new sentence, like the native
                 // keyboard; the same side effect runs for action fields
                 // (D-016) — the field decides what return did
@@ -387,6 +491,9 @@ class KeyboardModel {
     }
 
     private val sentenceEnders = setOf(".", "?", "!")
+
+    /** Punctuation that finishes the word before it, like space and return. */
+    private val wordTerminators = setOf(".", ",", "?", "!", ";", ":")
 
     /** Characters that finish a word — the iOS separator set. */
     private val wordSeparators =

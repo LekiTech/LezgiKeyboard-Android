@@ -18,6 +18,7 @@ import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.model.TextEditor
+import com.lekitech.lezgikeyboard.store.LearnedWords
 import com.lekitech.lezgikeyboard.store.WordSuggestions
 import com.lekitech.lezgikeyboard.ui.KeyboardView
 import kotlin.math.abs
@@ -48,6 +49,7 @@ class LezgiInputMethodService : InputMethodService() {
             it.prefValue == preferences.getString(LAYOUT_VARIANT_KEY, null)
         } ?: LayoutVariant.CLASSIC
         model.wordSuggestions = WordSuggestions.open(this)
+        model.learnedWords = LearnedWords.open(this)
     }
 
     private var inputView: View? = null
@@ -83,9 +85,7 @@ class LezgiInputMethodService : InputMethodService() {
                     preferences.edit().putString(LAYOUT_VARIANT_KEY, variant.prefValue).apply()
                 },
                 onSuggestion = ::acceptSuggestion,
-                // Learned-word deletion arrives with the store (Stage 6);
-                // no displayed suggestion is learned before then.
-                onSuggestionDelete = { },
+                onSuggestionDelete = { model.deleteLearnedWord(it, textEditor) },
             )
         }
         return view
@@ -161,6 +161,8 @@ class LezgiInputMethodService : InputMethodService() {
     override fun onDestroy() {
         model.wordSuggestions?.close()
         model.wordSuggestions = null
+        model.learnedWords?.close()
+        model.learnedWords = null
         imeLifecycleOwner.onDestroy()
         super.onDestroy()
     }
@@ -192,11 +194,14 @@ class LezgiInputMethodService : InputMethodService() {
      * because the prefix comes from the composed word, not the host.
      */
     private fun acceptSuggestion(word: String) {
+        // The previous word must be captured before the prefix is
+        // replaced — it feeds the bigram for the picked word.
+        val previous = model.previousWord(textEditor)
         val prefixLength =
             maxOf(model.wordPrefix(textEditor).length, model.composedWord.length)
         repeat(prefixLength) { textEditor.deleteBackward() }
         textEditor.insertText("$word ")
-        model.recordPickedSuggestion(word, insertedSpace = true)
+        model.recordPickedSuggestion(word, previous, insertedSpace = true)
         if (model.shiftState == ShiftState.ONCE) model.shiftState = ShiftState.OFF
         model.updateSuggestions(textEditor)
     }
@@ -256,6 +261,12 @@ class LezgiInputMethodService : InputMethodService() {
 
         override fun textBeforeCursor(maxLength: Int): CharSequence? =
             currentInputConnection?.getTextBeforeCursor(maxLength, 0)
+
+        override fun hasText(): Boolean {
+            val ic = currentInputConnection ?: return false
+            return !ic.getTextBeforeCursor(1, 0).isNullOrEmpty() ||
+                !ic.getTextAfterCursor(1, 0).isNullOrEmpty()
+        }
 
         override fun moveCursor(offset: Int) {
             val ic = currentInputConnection ?: return
