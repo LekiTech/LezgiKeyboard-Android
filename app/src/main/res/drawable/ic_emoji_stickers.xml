@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Sticker: rounded square with a peeled bottom-right corner. -->
+    <path
+        android:pathData="M13.9,20.25 H7 A2.25,2.25 0 0 1 4.75,18 V7 A2.25,2.25 0 0 1 7,4.75 H17 A2.25,2.25 0 0 1 19.25,7 V14.9 L13.9,20.25 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M13.9,20.25 V17.15 A2.25,2.25 0 0 1 16.15,14.9 H19.25"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round" />
+</vector>

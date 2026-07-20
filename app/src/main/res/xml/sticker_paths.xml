@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider scope for sticker insertion (D-031): only the cache
+     copies of the bundled pack are ever shared, nothing else. -->
+<paths>
+    <cache-path name="stickers" path="stickers/" />
+</paths>

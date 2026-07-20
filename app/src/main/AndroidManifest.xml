@@ -21,6 +21,19 @@
                 android:resource="@xml/method" />
         </service>
 
+        <!-- Grants host apps read access to a committed sticker image
+             (Commit Content API, D-031); scoped to the cache copies of
+             the bundled pack by sticker_paths.xml. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.stickers"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/sticker_paths" />
+        </provider>
+
         <!-- Minimal onboarding: enable the keyboard and switch to it. -->
         <activity
             android:name=".onboarding.MainActivity"

@@ -29,6 +29,8 @@ android {
 
     buildFeatures {
         compose = true
+        // For BuildConfig.DEBUG — the metrics log line is debug-only.
+        buildConfig = true
     }
 }
 
@@ -43,6 +45,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.androidx.activity.compose)
+    // FileProvider — serves sticker files to host apps (D-031).
+    implementation(libs.androidx.core)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.savedstate.ktx)
 }
