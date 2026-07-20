@@ -75,10 +75,15 @@ fun MorphingWordText(
     val fontSize = with(LocalDensity.current) { Dp(BAR_TEXT_SIZE).toSp() }
     val style = TextStyle(color = colors.label, fontSize = fontSize)
 
+    // A glyph is a grapheme cluster, not a UTF-16 unit: an emoji in
+    // the composed word (emoji are not word separators, same as iOS)
+    // must never be torn into surrogate halves by the per-glyph run.
+    val baseGlyphs = remember(base) { graphemeClusters(base) }
+    val wordGlyphCount = remember(word) { graphemeClusters(word).size }
+
     // Overlong words fall back to a plain label (no morph), shrinking
-    // slightly before truncating — Lezgi words run long. Approximated
-    // by glyph count until the real engine brings real words (Stage 5).
-    if (word.length > OVERFLOW_GLYPHS) {
+    // slightly before truncating — Lezgi words run long.
+    if (wordGlyphCount > OVERFLOW_GLYPHS) {
         BasicText(
             text = if (quoted) "«$word»" else word,
             maxLines = 1,
@@ -90,15 +95,15 @@ fun MorphingWordText(
     Row {
         if (quoted) BasicText(text = "«", style = style)
         key(generation) {
-            val initialLength = remember { base.length }
-            base.forEachIndexed { index, glyph ->
+            val initialCount = remember { baseGlyphs.size }
+            baseGlyphs.forEachIndexed { index, glyph ->
                 // Glyphs present at (re)mount skip the enter animation —
                 // the ripple below owns their appearance; glyphs added
                 // by a later prefix morph fade/expand in instead.
                 val visibility = remember {
-                    MutableTransitionState(index < initialLength)
+                    MutableTransitionState(index < initialCount)
                 }
-                visibility.targetState = index < word.length
+                visibility.targetState = index < wordGlyphCount
                 AnimatedVisibility(
                     visibleState = visibility,
                     enter = fadeIn(tween(MORPH_MS, easing = EaseOut)) +
@@ -106,7 +111,7 @@ fun MorphingWordText(
                     exit = fadeOut(tween(MORPH_MS, easing = EaseOut)) +
                         shrinkHorizontally(tween(MORPH_MS, easing = EaseOut)),
                 ) {
-                    val settle = remember { Animatable(if (index < initialLength) 0f else 1f) }
+                    val settle = remember { Animatable(if (index < initialCount) 0f else 1f) }
                     LaunchedEffect(Unit) {
                         if (settle.value < 1f) {
                             delay(STAGGER_MS * index)
@@ -115,7 +120,7 @@ fun MorphingWordText(
                     }
                     val settleOffset = with(LocalDensity.current) { 1.5.dp.toPx() }
                     BasicText(
-                        text = glyph.toString(),
+                        text = glyph,
                         style = style,
                         modifier = Modifier.graphicsLayer {
                             alpha = settle.value
@@ -130,6 +135,22 @@ fun MorphingWordText(
         }
         if (quoted) BasicText(text = "»", style = style)
     }
+}
+
+/** Splits into user-perceived characters (ICU extended grapheme clusters). */
+private fun graphemeClusters(text: String): List<String> {
+    if (text.isEmpty()) return emptyList()
+    val iterator = android.icu.text.BreakIterator.getCharacterInstance()
+    iterator.setText(text)
+    val clusters = mutableListOf<String>()
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != android.icu.text.BreakIterator.DONE) {
+        clusters.add(text.substring(start, end))
+        start = end
+        end = iterator.next()
+    }
+    return clusters
 }
 
 /** Bar text size in dp (density-fixed, D-020); chosen on device on iOS. */

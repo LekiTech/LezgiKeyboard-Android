@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import java.io.File
+import java.util.Locale
 
 /**
  * On-device learned-word store (`learned.sqlite`) — the Android
@@ -40,8 +41,10 @@ class LearnedWords private constructor(private val db: SQLiteDatabase) {
         return true
     }
 
+    // A low surrogate never counts: an astral character (an emoji in a
+    // composed word) is one letter, mirroring iOS's grapheme-based count.
     private fun lezgiLetterCount(word: String): Int =
-        word.count { it !in digraphTails }
+        word.count { it !in digraphTails && !it.isLowSurrogate() }
 
     // MARK: - Learning
 
@@ -202,6 +205,102 @@ class LearnedWords private constructor(private val db: SQLiteDatabase) {
             while (cursor.moveToNext()) results.add(cursor.getString(0))
         }
         return results
+    }
+
+    // MARK: - Local quality metrics
+    //
+    // Plain counters in the meta table: never leave the device, never
+    // affect ranking or learning, and survive a learned-data reset —
+    // they describe the bar's quality history, not the dictionary.
+    // Baseline first, ranking changes later, one at a time.
+
+    enum class Metric(val key: String) {
+        /**
+         * Completed words that had at least one predictive candidate
+         * (beyond the quoted literal) visible while being composed.
+         * Counted once per completed word, not per suggestion refresh.
+         */
+        OPPORTUNITIES("m_opportunities"),
+
+        /** Predictive suggestions accepted from the bar. */
+        ACCEPTED("m_accepted"),
+
+        /**
+         * Words completed manually — terminator typed, host
+         * send-clear, or the quoted literal tapped.
+         */
+        TYPED_MANUALLY("m_typed_manually"),
+
+        /** Manual completions that had predictive candidates available. */
+        IGNORED("m_ignored"),
+
+        /**
+         * Accepted suggestions the user went back into before
+         * completing any other word (event-based, no timeout).
+         */
+        CORRECTED("m_corrected"),
+    }
+
+    fun bumpMetric(metric: Metric) {
+        db.execSQL(
+            """
+            INSERT INTO meta(key, value) VALUES(?1, 1)
+            ON CONFLICT(key) DO UPDATE SET value = value + 1
+            """,
+            arrayOf(metric.key),
+        )
+    }
+
+    /** One line for the DEBUG startup log (logcat, tag "kb-metrics"). */
+    fun metricsSummary(): String {
+        fun value(metric: Metric): Long =
+            intValue("SELECT value FROM meta WHERE key = '${metric.key}'")
+        val accepted = value(Metric.ACCEPTED)
+        val ignored = value(Metric.IGNORED)
+        val rate = if (accepted + ignored > 0) {
+            String.format(Locale.US, "%.1f%%", 100.0 * accepted / (accepted + ignored))
+        } else {
+            "n/a"
+        }
+        return "opportunities=${value(Metric.OPPORTUNITIES)} accepted=$accepted " +
+            "typedManually=${value(Metric.TYPED_MANUALLY)} ignored=$ignored " +
+            "corrected=${value(Metric.CORRECTED)} acceptance=$rate"
+    }
+
+    /**
+     * Learned words for the settings dictionary list, ranked the same
+     * way as suggestions (picked > typed, then recency) and filtered
+     * by the same visibility rule (`count + picked >= minVisibleUses`,
+     * ≥ 2 characters): below-threshold rows are internal frequency
+     * signals, not yet user-facing vocabulary. Bundled-dictionary
+     * membership is filtered by the caller, which owns that database
+     * handle.
+     */
+    fun topWords(limit: Int): List<String> {
+        val results = mutableListOf<String>()
+        db.rawQuery(
+            """
+            SELECT word FROM user_word
+            WHERE count + picked >= $minVisibleUses AND LENGTH(word) >= 2
+            ORDER BY count + 3 * picked DESC, last_used DESC
+            LIMIT $limit
+            """,
+            null,
+        ).use { cursor ->
+            while (cursor.moveToNext()) results.add(cursor.getString(0))
+        }
+        return results
+    }
+
+    /**
+     * Wipes everything learned — words, pairs, and the event counter.
+     * The bundled dictionary is untouched.
+     */
+    fun reset() {
+        db.execSQL("DELETE FROM user_word")
+        db.execSQL("DELETE FROM user_bigram")
+        db.execSQL("UPDATE meta SET value = 0 WHERE key = 'total_events'")
+        db.execSQL("VACUUM")
     }
 
     /**
