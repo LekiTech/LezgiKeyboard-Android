@@ -42,8 +42,11 @@ fun KeyButton(
     isPressed: Boolean,
     colors: KeyboardColors,
     modifier: Modifier = Modifier,
+    hideLabel: Boolean = false,
 ) {
-    val background = if (isPressed) colors.letterKeyPressed else colors.letterKey
+    // While a character key shows its preview bubble, the key's own
+    // label hides underneath it, like the native keyboard.
+    val background = if (isPressed && !hideLabel) colors.letterKeyPressed else colors.letterKey
     Box(
         modifier = modifier.drawBehind {
             val radius = CornerRadius(8.dp.toPx())
@@ -56,7 +59,9 @@ fun KeyButton(
         },
         contentAlignment = Alignment.Center,
     ) {
-        KeyLabel(cap, returnAction, shiftState, colors)
+        if (!hideLabel) {
+            KeyLabel(cap, returnAction, shiftState, colors)
+        }
     }
 }
 
