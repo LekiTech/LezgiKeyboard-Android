@@ -314,3 +314,25 @@ navigation band — verified by a pass-through tap test. iOS cannot do
 this (`UIInputView` clips at its bounds), which is why iOS clamps
 top-row callouts downward instead; the clamp remains in code as a
 safety net.
+
+## D-026 (2026-07-19) — Vertical cursor-mode steps use arrow-key events
+
+In space-cursor mode, each 30 dp vertical step sends a
+`DPAD_UP`/`DPAD_DOWN` key event (`sendDownUpKeyEvents`) instead of
+computing a character offset from the text context. Horizontal steps
+keep the character-precise `setSelection` movement (iOS parity).
+
+*Why*: D-023 divergence, owner-approved. The iOS context math only
+sees logical (newline-separated) lines; visual wraps are invisible to
+IMEs on both platforms, so in a long wrapped paragraph the ported math
+degenerated to jumping the caret to the paragraph edges (iOS's blind
+one-line jump also relies on iOS truncating context at paragraph
+boundaries — Android's untruncated context breaks that assumption).
+Arrow-key events delegate the movement to the editor, which owns its
+layout: wrapped lines step correctly and the visual column is
+preserved. No coordinate-based caret-placement API exists for
+third-party IMEs (`InputConnection` is text-index based;
+`CursorAnchorInfo` is read-only feedback with inconsistent editor
+support), so editor-driven stepping is the ceiling of what Android
+allows. Rare non-standard editors will treat the events like hardware
+arrow keys — acceptable by construction.

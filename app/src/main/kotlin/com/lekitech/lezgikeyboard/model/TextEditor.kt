@@ -19,9 +19,6 @@ interface TextEditor {
      */
     fun textBeforeCursor(maxLength: Int): CharSequence?
 
-    /** Text after the cursor, up to `maxLength` characters. */
-    fun textAfterCursor(maxLength: Int): CharSequence?
-
     /** Moves the caret by `offset` characters (negative = left). */
     fun moveCursor(offset: Int)
 

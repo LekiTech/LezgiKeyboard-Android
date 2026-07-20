@@ -190,41 +190,4 @@ class KeyboardModel {
     }
 
     private val sentenceEnders = setOf(".", "?", "!")
-
-    // MARK: - Cursor line jumps (space trackpad mode)
-
-    /**
-     * Moves the caret to the previous/next newline-separated line,
-     * keeping the column when the neighboring line is visible in the
-     * host context. Hosts truncate the context at paragraph boundaries,
-     * so without a visible newline one is still crossed blindly: up
-     * lands at the end of the previous line, down at the start of the
-     * next (hosts clamp at the document edges). Visual wraps of long
-     * lines are invisible to input methods.
-     */
-    fun moveCursorLine(up: Boolean, editor: TextEditor) {
-        if (up) {
-            val before = editor.textBeforeCursor(1024)?.toString() ?: ""
-            val lines = before.split("\n")
-            val column = lines.last().length
-            if (lines.size >= 2) {
-                val prevLen = lines[lines.size - 2].length
-                editor.moveCursor(-(column + 1 + maxOf(prevLen - column, 0)))
-            } else {
-                editor.moveCursor(-(column + 1))
-            }
-        } else {
-            val after = editor.textAfterCursor(1024)?.toString() ?: ""
-            val lines = after.split("\n")
-            val restOfCurrent = lines[0].length
-            if (lines.size >= 2) {
-                val nextLen = lines[1].length
-                val column = (editor.textBeforeCursor(1024)?.toString() ?: "")
-                    .split("\n").last().length
-                editor.moveCursor(restOfCurrent + 1 + minOf(column, nextLen))
-            } else {
-                editor.moveCursor(restOfCurrent + 1)
-            }
-        }
-    }
 }

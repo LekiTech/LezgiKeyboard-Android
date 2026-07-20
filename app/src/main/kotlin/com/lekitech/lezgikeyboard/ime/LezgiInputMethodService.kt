@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
@@ -61,7 +62,16 @@ class LezgiInputMethodService : InputMethodService() {
                 onKey = ::handleKey,
                 onCursorMove = { textEditor.moveCursor(it) },
                 onCursorLineMove = { lines ->
-                    repeat(abs(lines)) { model.moveCursorLine(up = lines < 0, textEditor) }
+                    // Vertical steps go through arrow-key events: the
+                    // editor owns its layout, so wrapped lines and the
+                    // visual column are handled correctly — something
+                    // context math can never see (DECISIONS.md D-026).
+                    repeat(abs(lines)) {
+                        sendDownUpKeyEvents(
+                            if (lines < 0) KeyEvent.KEYCODE_DPAD_UP
+                            else KeyEvent.KEYCODE_DPAD_DOWN,
+                        )
+                    }
                 },
                 onLayoutVariant = { variant ->
                     model.layoutVariant = variant
@@ -170,9 +180,6 @@ class LezgiInputMethodService : InputMethodService() {
 
         override fun textBeforeCursor(maxLength: Int): CharSequence? =
             currentInputConnection?.getTextBeforeCursor(maxLength, 0)
-
-        override fun textAfterCursor(maxLength: Int): CharSequence? =
-            currentInputConnection?.getTextAfterCursor(maxLength, 0)
 
         override fun moveCursor(offset: Int) {
             val ic = currentInputConnection ?: return
