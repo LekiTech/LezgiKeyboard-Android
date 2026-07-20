@@ -34,6 +34,11 @@ class KeyboardModel {
     val isShifted: Boolean get() = shiftState != ShiftState.OFF
     val isCapsLock: Boolean get() = shiftState == ShiftState.CAPS_LOCK
 
+    /** Space long-press trackpad mode; key labels hide while active. */
+    var isSpaceCursorMode by mutableStateOf(false)
+
+    private var lastSpaceTapNanos: Long? = null
+
     /** User-selectable from Stage 3 (gear menu) / Stage 7 (panel). */
     val layoutVariant = LayoutVariant.CLASSIC
 
@@ -89,7 +94,25 @@ class KeyboardModel {
                 }
             }
 
-            KeyCap.Space -> editor.insertText(" ")
+            // Quick double space after a word turns into ". " with a
+            // capital next (user-disableable from Stage 7)
+            KeyCap.Space -> {
+                val now = System.nanoTime()
+                val last = lastSpaceTapNanos
+                val before = editor.textBeforeCursor(2)
+                if (last != null && now - last < 350_000_000L &&
+                    before != null && before.length >= 2 && before.last() == ' ' &&
+                    before[before.length - 2].isLetterOrDigit()
+                ) {
+                    editor.deleteBackward()
+                    editor.insertText(". ")
+                    if (shiftState != ShiftState.CAPS_LOCK) shiftState = ShiftState.ONCE
+                    lastSpaceTapNanos = null
+                } else {
+                    editor.insertText(" ")
+                    lastSpaceTapNanos = now
+                }
+            }
 
             KeyCap.Return -> {
                 editor.performReturn()
@@ -157,4 +180,41 @@ class KeyboardModel {
     }
 
     private val sentenceEnders = setOf(".", "?", "!")
+
+    // MARK: - Cursor line jumps (space trackpad mode)
+
+    /**
+     * Moves the caret to the previous/next newline-separated line,
+     * keeping the column when the neighboring line is visible in the
+     * host context. Hosts truncate the context at paragraph boundaries,
+     * so without a visible newline one is still crossed blindly: up
+     * lands at the end of the previous line, down at the start of the
+     * next (hosts clamp at the document edges). Visual wraps of long
+     * lines are invisible to input methods.
+     */
+    fun moveCursorLine(up: Boolean, editor: TextEditor) {
+        if (up) {
+            val before = editor.textBeforeCursor(1024)?.toString() ?: ""
+            val lines = before.split("\n")
+            val column = lines.last().length
+            if (lines.size >= 2) {
+                val prevLen = lines[lines.size - 2].length
+                editor.moveCursor(-(column + 1 + maxOf(prevLen - column, 0)))
+            } else {
+                editor.moveCursor(-(column + 1))
+            }
+        } else {
+            val after = editor.textAfterCursor(1024)?.toString() ?: ""
+            val lines = after.split("\n")
+            val restOfCurrent = lines[0].length
+            if (lines.size >= 2) {
+                val nextLen = lines[1].length
+                val column = (editor.textBeforeCursor(1024)?.toString() ?: "")
+                    .split("\n").last().length
+                editor.moveCursor(restOfCurrent + 1 + minOf(column, nextLen))
+            } else {
+                editor.moveCursor(restOfCurrent + 1)
+            }
+        }
+    }
 }

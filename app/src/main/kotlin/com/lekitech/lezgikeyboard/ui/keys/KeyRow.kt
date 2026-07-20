@@ -1,5 +1,6 @@
 package com.lekitech.lezgikeyboard.ui.keys
 
+import android.os.SystemClock
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 import kotlin.math.abs
@@ -35,25 +37,32 @@ import kotlinx.coroutines.withTimeoutOrNull
  * dead bands; horizontal gap touches go to the nearest key by center
  * x), and the per-key overlays — the press bubble and the long-press
  * callout. The key is chosen at touch-down and never re-targets while
- * the finger slides; keys commit on touch-up. While a callout shows,
- * horizontal drags select an option and release inserts it as a whole
- * string.
+ * the finger slides; keys commit on touch-up.
+ *
+ * Hold gestures run on absolute deadlines (finger jitter never resets
+ * them): character callouts open after the hold delay and horizontal
+ * drags select an option; backspace repeats with acceleration; holding
+ * space enters cursor mode — labels hide and dragging moves the caret
+ * (8 dp per character, 30 dp per line), releasing inserts nothing.
  */
 @Composable
 fun KeyRow(
     row: List<KeyCap>,
     rowIndex: Int,
     totalRows: Int,
-    returnAction: ReturnKeyAction,
-    shiftState: ShiftState,
+    model: KeyboardModel,
     colors: KeyboardColors,
     onKey: (KeyCap) -> Unit,
+    onCursorMove: (Int) -> Unit,
+    onCursorLineMove: (Int) -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(LezgiLayout.KEY_HEIGHT.dp),
     ) {
+        val returnAction = model.returnAction
+        val shiftState = model.shiftState
         val spacing = LezgiLayout.KEY_SPACING.dp
         val weights = row.map { keyWeight(it, returnAction) }
         val unit = (maxWidth - spacing * (row.size - 1)) / weights.sum()
@@ -79,8 +88,8 @@ fun KeyRow(
                 returnAction = returnAction,
                 shiftState = shiftState,
                 isPressed = pressedIndex == index,
-                hideLabel = pressedIndex == index && calloutOptions == null
-                    && cap is KeyCap.Character,
+                hideLabel = model.isSpaceCursorMode ||
+                    (pressedIndex == index && calloutOptions == null && cap is KeyCap.Character),
                 colors = colors,
                 modifier = Modifier
                     .offset(x = frames[index].x)
@@ -99,7 +108,9 @@ fun KeyRow(
                 .offset(y = -topExpand)
                 .fillMaxWidth()
                 .height(LezgiLayout.KEY_HEIGHT.dp + topExpand + bottomExpand)
-                .pointerInput(row, returnAction, shiftState) {
+                .pointerInput(row, returnAction) {
+                    val charStepPx = 8.dp.toPx()
+                    val lineStepPx = 30.dp.toPx()
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         val index = keyIndexAt(down.position.x.toDp(), frames)
@@ -108,36 +119,86 @@ fun KeyRow(
                         val alternates = (cap as? KeyCap.Character)
                             ?.let { LezgiLayout.callouts[it.text.lowercase()] }
 
+                        var cursorMode = false
+                        var spaceLastX = down.position.x
+                        var spaceLastY = down.position.y
+                        var repeatInterval = BACKSPACE_FIRST_REPEAT_MS
+                        var deadline: Long? = when {
+                            alternates != null -> now() + CALLOUT_DELAY_MS
+                            cap == KeyCap.Backspace -> now() + HOLD_DELAY_MS
+                            cap == KeyCap.Space -> now() + HOLD_DELAY_MS
+                            else -> null
+                        }
+
                         var upReceived = false
                         var cancelled = false
-                        // The callout appears after the hold delay; until
-                        // then the loop just tracks up/cancel.
                         while (!upReceived && !cancelled) {
-                            val event = withTimeoutOrNull(
-                                if (alternates != null && calloutOptions == null) {
-                                    CALLOUT_DELAY_MS
-                                } else Long.MAX_VALUE / 2,
-                            ) { awaitPointerEvent(PointerEventPass.Main) }
-
-                            if (event == null) {
-                                // Hold elapsed → open the callout: base
-                                // character first, duplicates removed
-                                val base = (cap as KeyCap.Character).text.lowercase()
-                                calloutOptions =
-                                    listOf(base) + alternates!!.filter { it.lowercase() != base }
-                                calloutSelected = 0
+                            val wait = deadline?.let { it - now() }
+                            if (wait != null && wait <= 0) {
+                                // The hold deadline fired
+                                when {
+                                    alternates != null && calloutOptions == null -> {
+                                        // Base character first, duplicates removed
+                                        val base = (cap as KeyCap.Character).text.lowercase()
+                                        calloutOptions = listOf(base) +
+                                            alternates.filter { it.lowercase() != base }
+                                        calloutSelected = 0
+                                        deadline = null
+                                    }
+                                    cap == KeyCap.Backspace -> {
+                                        onKey(KeyCap.Backspace)
+                                        deadline = now() + repeatInterval
+                                        repeatInterval = maxOf(
+                                            BACKSPACE_FLOOR_MS,
+                                            (repeatInterval * BACKSPACE_DECAY).toLong(),
+                                        )
+                                    }
+                                    cap == KeyCap.Space -> {
+                                        cursorMode = true
+                                        model.isSpaceCursorMode = true
+                                        deadline = null
+                                    }
+                                    else -> deadline = null
+                                }
                                 continue
                             }
+
+                            val event = if (wait == null) {
+                                awaitPointerEvent(PointerEventPass.Main)
+                            } else {
+                                withTimeoutOrNull(wait) { awaitPointerEvent(PointerEventPass.Main) }
+                            } ?: continue
+
                             val change = event.changes.first()
-                            if (calloutOptions != null && index != null) {
-                                val left = calloutLeft(
-                                    frames[index],
-                                    CALLOUT_OPTION_WIDTH * calloutOptions!!.size,
-                                    rowWidth,
-                                )
-                                val local = change.position.x.toDp() - left
-                                calloutSelected = (local / CALLOUT_OPTION_WIDTH).toInt()
-                                    .coerceIn(0, calloutOptions!!.size - 1)
+                            when {
+                                calloutOptions != null && index != null -> {
+                                    val left = calloutLeft(
+                                        frames[index],
+                                        CALLOUT_OPTION_WIDTH * calloutOptions!!.size,
+                                        rowWidth,
+                                    )
+                                    val local = change.position.x.toDp() - left
+                                    calloutSelected = (local / CALLOUT_OPTION_WIDTH).toInt()
+                                        .coerceIn(0, calloutOptions!!.size - 1)
+                                }
+                                cursorMode -> {
+                                    val steps = ((change.position.x - spaceLastX) / charStepPx).toInt()
+                                    if (steps != 0) {
+                                        onCursorMove(steps)
+                                        spaceLastX += steps * charStepPx
+                                    }
+                                    val lines = ((change.position.y - spaceLastY) / lineStepPx).toInt()
+                                    if (lines != 0) {
+                                        onCursorLineMove(lines)
+                                        spaceLastY += lines * lineStepPx
+                                    }
+                                }
+                                cap == KeyCap.Space -> {
+                                    // Track the finger before cursor mode kicks
+                                    // in so activation starts without a jump
+                                    spaceLastX = change.position.x
+                                    spaceLastY = change.position.y
+                                }
                             }
                             when {
                                 change.changedToUp() -> upReceived = true
@@ -148,7 +209,10 @@ fun KeyRow(
                         val options = calloutOptions
                         pressedIndex = null
                         calloutOptions = null
-                        if (upReceived) {
+                        if (cursorMode) {
+                            // Cursor drag ends without inserting a space
+                            model.isSpaceCursorMode = false
+                        } else if (upReceived) {
                             if (options != null) {
                                 onKey(KeyCap.Character(options[calloutSelected]))
                             } else if (cap != null) {
@@ -161,7 +225,7 @@ fun KeyRow(
 
         pressedIndex?.let { index ->
             val cap = row[index]
-            if (calloutOptions == null && cap is KeyCap.Character) {
+            if (calloutOptions == null && cap is KeyCap.Character && !model.isSpaceCursorMode) {
                 KeyPreviewBubble(
                     label = LezgiLayout.label(cap, shifted = shiftState != ShiftState.OFF),
                     frame = frames[index],
@@ -185,6 +249,14 @@ fun KeyRow(
 
 /** Callout hold delay; user-adjustable from Stage 7 (0.2/0.3/0.45 s). */
 private const val CALLOUT_DELAY_MS = 300L
+
+/** Backspace repeat and space-cursor activation hold. */
+private const val HOLD_DELAY_MS = 400L
+private const val BACKSPACE_FIRST_REPEAT_MS = 100L
+private const val BACKSPACE_FLOOR_MS = 30L
+private const val BACKSPACE_DECAY = 0.85
+
+private fun now(): Long = SystemClock.uptimeMillis()
 
 /** Distance from the keyboard top to this row's top (bar + gap + rows above). */
 private fun rowTopInKeyboard(rowIndex: Int): Dp =

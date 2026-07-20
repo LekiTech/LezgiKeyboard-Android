@@ -26,7 +26,12 @@ import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
  * in `KeyboardModel`; this view draws and reports key taps.
  */
 @Composable
-fun KeyboardView(model: KeyboardModel, onKey: (KeyCap) -> Unit) {
+fun KeyboardView(
+    model: KeyboardModel,
+    onKey: (KeyCap) -> Unit,
+    onCursorMove: (Int) -> Unit,
+    onCursorLineMove: (Int) -> Unit,
+) {
     val colors = KeyboardColors.resolve(isSystemInDarkTheme())
     Box(
         modifier = Modifier
@@ -56,10 +61,11 @@ fun KeyboardView(model: KeyboardModel, onKey: (KeyCap) -> Unit) {
                         row = row,
                         rowIndex = index,
                         totalRows = rows.size,
-                        returnAction = model.returnAction,
-                        shiftState = model.shiftState,
+                        model = model,
                         colors = colors,
                         onKey = onKey,
+                        onCursorMove = onCursorMove,
+                        onCursorLineMove = onCursorLineMove,
                     )
                 }
             }

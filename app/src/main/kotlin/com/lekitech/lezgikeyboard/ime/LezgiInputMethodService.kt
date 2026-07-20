@@ -3,12 +3,14 @@ package com.lekitech.lezgikeyboard.ime
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedTextRequest
 import androidx.compose.ui.platform.ComposeView
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.TextEditor
 import com.lekitech.lezgikeyboard.ui.KeyboardView
+import kotlin.math.abs
 
 /**
  * IME entry point: hosts the Compose keyboard, owns the fixed-height
@@ -37,7 +39,14 @@ class LezgiInputMethodService : InputMethodService() {
         val view = ComposeView(this)
         imeLifecycleOwner.attach(view)
         view.setContent {
-            KeyboardView(model = model, onKey = ::handleKey)
+            KeyboardView(
+                model = model,
+                onKey = ::handleKey,
+                onCursorMove = { textEditor.moveCursor(it) },
+                onCursorLineMove = { lines ->
+                    repeat(abs(lines)) { model.moveCursorLine(up = lines < 0, textEditor) }
+                },
+            )
         }
         return view
     }
@@ -107,6 +116,18 @@ class LezgiInputMethodService : InputMethodService() {
 
         override fun textBeforeCursor(maxLength: Int): CharSequence? =
             currentInputConnection?.getTextBeforeCursor(maxLength, 0)
+
+        override fun textAfterCursor(maxLength: Int): CharSequence? =
+            currentInputConnection?.getTextAfterCursor(maxLength, 0)
+
+        override fun moveCursor(offset: Int) {
+            val ic = currentInputConnection ?: return
+            val extracted = ic.getExtractedText(ExtractedTextRequest(), 0) ?: return
+            val base = extracted.startOffset + extracted.selectionStart
+            val max = extracted.startOffset + (extracted.text?.length ?: 0)
+            val target = (base + offset).coerceIn(0, max)
+            ic.setSelection(target, target)
+        }
 
         override fun performReturn() {
             val ic = currentInputConnection ?: return
