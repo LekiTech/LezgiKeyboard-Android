@@ -263,3 +263,14 @@ icon with 3-button navigation; the D-021 band's switcher button with
 gesture navigation). An in-keyboard globe would duplicate the system
 affordance and shrink the space bar. Owner-reviewed and confirmed
 after Stage 2.
+
+## D-023 (2026-07-19) — Parity is the default, not an absolute
+
+iOS parity remains the default goal for every behavior. But when
+Android's native conventions or capabilities offer a demonstrably
+better user experience than the iOS behavior, the difference is
+surfaced to the owner — with both approaches explained and a
+recommendation — before anything is implemented. The owner decides;
+deliberate divergences are recorded here. Mechanical copying of iOS
+where Android is genuinely better is as wrong as silent Android-isms
+where parity matters.
