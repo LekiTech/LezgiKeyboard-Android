@@ -21,9 +21,17 @@ behavior.
 module, no DI framework, no INTERNET permission, `allowBackup=false`.
 minSdk 26, targetSdk 36.
 
-**Current status.** Stage 1 of 8 complete (tag `stage-1`): the
-fixed-height IME shell is installed, verified on device, and audited.
-The keyboard renders placeholder key rows; typing arrives with Stage 2.
+**Current status.** Stages 1–3 of 8 complete (tags `stage-1` …
+`stage-3`): fixed-height IME shell, full three-page layout with
+working typing, and all key interactions (Shift/Caps Lock +
+auto-capitalization, press bubbles, digraph callouts, backspace
+repeat, space-cursor mode, double-space period, gear layout menu, name
+flash). The suggestion bar is still an empty reserved area — its UI,
+engine, learning, settings, and emoji page are Stages 4–8. The
+decision log runs D-001…D-026; note especially D-025 (transient
+overlays float in a pass-through window strip above the visible
+keyboard) and D-026 (vertical cursor-mode steps are DPAD events —
+deliberately better than iOS on wrapped lines, per D-023).
 
 **Repository structure.**
 
@@ -40,8 +48,14 @@ app/src/main/
   res/xml/method.xml         IME declaration, subtype lez
   res/values[-ru]/           en/ru onboarding + subtitle strings
   kotlin/com/lekitech/lezgikeyboard/
-    ime/                     LezgiInputMethodService, ImeLifecycleOwner
-    ui/                      KeyboardView (placeholder), theme/KeyboardColors
+    ime/                     LezgiInputMethodService, ImeLifecycleOwner,
+                             EditorState
+    layout/                  LezgiLayout truth table (rows, callouts,
+                             weights, labels, geometry constants)
+    model/                   KeyboardModel, TextEditor (narrow editor
+                             surface the service implements)
+    ui/                      KeyboardView, keys/ (KeyRow, KeyButton,
+                             overlays), theme/KeyboardColors
     onboarding/              MainActivity (enable/switch shortcuts)
 gradle/, gradlew, *.kts      Gradle 8.14.3, AGP 8.10.1, Kotlin 2.1.21
 ```
@@ -99,10 +113,13 @@ keyboard background (D-017).
 
 | Component | Responsibility today | Grows into |
 |---|---|---|
-| `ime/LezgiInputMethodService` | Hosts the 250 dp ComposeView; attaches lifecycle owners at the window root; disables extract mode | The full iOS `KeyboardViewController` analog: owns `InputConnection`, stores, model wiring, the event pipeline (see plan §4/§6) |
+| `ime/LezgiInputMethodService` | Owns `InputConnection` (via the `TextEditor` implementation), the event pipeline seed (`onUpdateSelection` → shift re-evaluation), insets (D-021/D-025), variant persistence, name-flash timer | Full pipeline: composed word + suggestions (Stage 5), stores (Stages 5–6), metrics log (Stage 8) |
 | `ime/ImeLifecycleOwner` | Lifecycle/saved-state glue Compose requires in a Service window | Unchanged |
-| `ui/KeyboardView` | Renders the height contract as placeholders | Root composable: suggestion bar + key grid + overlays + settings panel |
-| `ui/theme/KeyboardColors` | Light/dark palette (background, letter key), resolved from `uiMode` | Full palette; forced-theme resolution in Stage 7 |
+| `ime/EditorState` | Pure `EditorInfo` mapping: return action, autocap mode | Password flag (Stage 5) |
+| `layout/LezgiLayout` | The truth table: rows, callouts, weights, labels, case helpers, geometry constants | `baseScore`-ready dictionary ordering never touches it |
+| `model/KeyboardModel` | Pages, shift machine, autocap, key handling, double-space, cursor-mode state, variant, name flash | Composed word, suggestion pipeline, learn hooks, metrics (Stages 5–6) |
+| `ui/KeyboardView` + `ui/keys/*` | Key grid, gesture surfaces (deadline-based holds), bubbles/callouts/menu in the pass-through strip | Suggestion bar content + animations (Stage 4), settings panel (Stage 7), emoji page (Stage 8) |
+| `ui/theme/KeyboardColors` | Palette roles in use, resolved from `uiMode` | Forced themes (Stage 7) |
 | `onboarding/MainActivity` | Enable/switch shortcuts (verified) | Unchanged |
 
 **Data flow today** is trivial (no input handling). The target
@@ -144,31 +161,18 @@ Working documents in `docs/` — where changes get recorded:
 Rule: architecture must never exist only in code. Documentation is part
 of the implementation, not an afterthought.
 
-## 5. Stage 2 readiness
+## 5. Current stage readiness
 
-**Deliverables** (full detail in `IMPLEMENTATION_STAGES.md` Stage 2):
-`layout/LezgiLayout` (letter rows in both `ъ` variants, numbers,
-symbols pages; callout data table; weights 1.0 / 1.2 / 1.8→2.3 / 4.5;
-labels; case helpers for digraphs; return labels; font-size rules);
-`model/KeyboardModel` first slice (page state, row assembly, character
-commit through a narrow text-edit proxy the service implements);
-`EditorState`; `ui/keys` RowView (weight layout, 6 dp paddings/gaps,
-visual + transparent gesture layers, ±5.5 dp expanded hit zones,
-nearest-key dispatch) and KeyButton (colors, radius 8, hairline bottom
-shadow, 22 pt / ×1.2-lowercase typography, icons); page switching;
-punctuation-returns-to-letters; action-aware return key
-(`performEditorAction`, Search icon, weight 2.3 for labels > 6 chars);
-globe key gated by `shouldOfferSwitchingToNextInputMethod()`.
-
-**Dependencies**: none beyond the existing baseline; no new libraries
-expected. **Assumptions**: the 250 dp frame, single ComposeView, and
-`ImeLifecycleOwner` glue stay untouched. **Constraints**: exact
-geometry and strings from the spec §2–§4; keyboard UI strings are Lezgi
-only, verbatim; no Material widgets; no interactions beyond plain taps
-(bubbles/Shift/repeats are Stage 3). **Risks** (bounded, non-blocking):
-Roboto has a `wght` axis but no width axis — typography is tuned by eye
-on device against iOS (target: between Regular and Medium, slightly
-narrow); monochrome vector icons must be drawn to match the iOS look.
+Stages are planned, tracked, and logged in
+`docs/IMPLEMENTATION_STAGES.md` — always read the current stage's
+entry there for deliverables, deferrals, and findings; this file does
+not duplicate it. Next up: **Stage 4, suggestion bar UI + animations**.
+Its geometry is already reserved (36 dp bar + 8 dp gap above the key
+rows, with the D-025 overlay strip above that), the palette and
+`overlayAt` overlay mechanics exist, and the exact animation
+parameters are specified in `ANDROID_PORT_CONTEXT.md` §6 and
+`docs/IOS_PARITY.md` — drive it with a fake candidate source; the real
+engine arrives in Stage 5.
 
 ## 6. Development principles
 
@@ -263,11 +267,10 @@ the hardware-keyboard setting (§2.2).
 ## 9. Current repository state
 
 - **Remote**: https://github.com/LekiTech/LezgiKeyboard-Android.git
-- **Branch**: `main` (this handoff document lands directly on top of
-  the milestone commit)
-- **Stage 1 milestone commit**: `be9ca8f` — "Mark Stage 1 complete
-  after audit"
-- **Latest tag**: `stage-1` (annotated, on `be9ca8f`)
-- **Milestone**: Stage 1 of 8 complete, audited, and verified on an
-  API 36 emulator; Stage 2 (keyboard layout + typing) is approved
-  architecture-wise and awaits the owner's go-ahead to begin.
+- **Branch**: `main`
+- **Milestone tags**: `stage-1`, `stage-2`, `stage-3` (annotated).
+- **Milestone**: Stages 1–3 of 8 complete and owner-verified on
+  device; Stage 4 (suggestion bar UI + animations) is next — its
+  deliverables are listed in `docs/IMPLEMENTATION_STAGES.md`, and the
+  bar geometry it builds on (36 dp + 8 dp gap) is already reserved in
+  `KeyboardView`.

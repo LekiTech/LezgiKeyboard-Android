@@ -38,6 +38,10 @@ also enable «show on-screen keyboard while hardware keyboard is active»
 
 ## Status
 
-Stage 1 of 8 (see [docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md)):
-the fixed-height IME shell is in place; the keyboard renders placeholder
-key rows. Typing arrives with Stage 2.
+Stages 1–3 of 8 complete (see
+[docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md)): the
+fixed-height IME, the full three-page layout with working typing, and
+all key interactions — Shift/Caps Lock with auto-capitalization, press
+bubbles, long-press callouts for the Lezgi digraphs, backspace repeat,
+space-bar cursor mode, double-space period, and the gear layout menu.
+Stage 4 (suggestion bar UI + animations) is next.

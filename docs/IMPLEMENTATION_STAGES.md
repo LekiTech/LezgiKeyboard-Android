@@ -162,7 +162,8 @@ globe appears only when the system requires it.
 
 ## Stage 3 — Key interactions
 
-**Status: implemented 2026-07-19 — awaiting device verification**
+**Status: done (2026-07-19)** — owner-verified on device, including
+the review refinements below.
 
 **Findings**
 - Hold gestures run on absolute deadlines inside the row's pointer
@@ -180,6 +181,19 @@ globe appears only when the system requires it.
   the caret 9 characters across lines and inserted nothing; the
   «Лезги чӏал» flash and «ЛЕЗГ» hint render; the gear menu switched
   «ъ» to the top row live and back.
+- Owner review fixes: overlays must be measured **unconstrained**
+  (`overlayAt` modifier) — the 43 dp row otherwise crops menus and
+  bubbles (the gear menu showed only one variant); the 1.2× lowercase
+  bump takes a lighter font weight (430 vs 480) because Roboto lacks
+  SF's optical sizing and larger glyphs render heavier strokes.
+- Owner-driven refinements: transient overlays float in a transparent
+  pass-through window strip so top-row previews/callouts keep their
+  natural offsets while the visible keyboard stays at the 250 dp
+  contract (D-025, supersedes the interim D-024 headroom); vertical
+  cursor-mode steps send DPAD arrow events so wrapped lines move one
+  visual line with the column preserved — better than the iOS context
+  math, which only sees logical newlines (D-026). Both verified on
+  device by the owner.
 
 **Objective**: the keyboard *feels* like the iOS one — every §5 gesture.
 
