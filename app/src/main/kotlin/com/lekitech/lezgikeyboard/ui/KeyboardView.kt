@@ -17,6 +17,7 @@ import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.ui.keys.KeyRow
+import com.lekitech.lezgikeyboard.ui.suggestions.SuggestionBar
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 
 /**
@@ -34,6 +35,8 @@ fun KeyboardView(
     onCursorMove: (Int) -> Unit,
     onCursorLineMove: (Int) -> Unit,
     onLayoutVariant: (LayoutVariant) -> Unit,
+    onSuggestion: (String) -> Unit,
+    onSuggestionDelete: (String) -> Unit,
 ) {
     val colors = KeyboardColors.resolve(isSystemInDarkTheme())
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -54,9 +57,12 @@ fun KeyboardView(
                 .fillMaxWidth()
                 .height(LezgiLayout.KEYBOARD_HEIGHT.dp),
         ) {
-            // Suggestion bar area: reserved from day one so the
-            // geometry never changes when content arrives (Stage 4).
-            Spacer(modifier = Modifier.height(LezgiLayout.SUGGESTION_BAR_HEIGHT.dp))
+            SuggestionBar(
+                model = model,
+                colors = colors,
+                onSuggestion = onSuggestion,
+                onSuggestionDelete = onSuggestionDelete,
+            )
             Spacer(modifier = Modifier.height(LezgiLayout.BAR_GAP.dp))
 
             val rows = model.rows()

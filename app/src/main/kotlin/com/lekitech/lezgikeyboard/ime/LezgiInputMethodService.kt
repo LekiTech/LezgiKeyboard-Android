@@ -13,7 +13,9 @@ import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.FakeSuggestionSource
 import com.lekitech.lezgikeyboard.model.KeyboardModel
+import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.model.TextEditor
 import com.lekitech.lezgikeyboard.ui.KeyboardView
 import kotlin.math.abs
@@ -29,6 +31,9 @@ class LezgiInputMethodService : InputMethodService() {
 
     private lateinit var imeLifecycleOwner: ImeLifecycleOwner
     private val model = KeyboardModel()
+
+    /** Stage 4 scaffolding; the real engine replaces it in Stage 5. */
+    private val fakeSuggestions = FakeSuggestionSource()
     private val handler = Handler(Looper.getMainLooper())
     private val hideKeyboardName = Runnable { model.showsKeyboardName = false }
 
@@ -77,6 +82,11 @@ class LezgiInputMethodService : InputMethodService() {
                     model.layoutVariant = variant
                     preferences.edit().putString(LAYOUT_VARIANT_KEY, variant.prefValue).apply()
                 },
+                onSuggestion = ::acceptSuggestion,
+                onSuggestionDelete = { word ->
+                    fakeSuggestions.delete(word)
+                    refreshSuggestionBar()
+                },
             )
         }
         return view
@@ -91,6 +101,8 @@ class LezgiInputMethodService : InputMethodService() {
         model.showsKeyboardName = true
         handler.removeCallbacks(hideKeyboardName)
         handler.postDelayed(hideKeyboardName, 1500)
+        fakeSuggestions.reset()
+        refreshSuggestionBar()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -151,6 +163,31 @@ class LezgiInputMethodService : InputMethodService() {
         if (cap == KeyCap.Backspace) {
             model.updateShiftFromContext(textEditor)
         }
+        fakeSuggestions.onKey(cap)
+        refreshSuggestionBar()
+    }
+
+    /**
+     * Accepting a suggestion replaces the typed prefix with the word
+     * plus a trailing space and refreshes the bar in the tap handler
+     * itself — hosts may not echo the keyboard's own edits promptly.
+     * The real replacement rule (max of context prefix and composed
+     * word) arrives with the engine in Stage 5.
+     */
+    private fun acceptSuggestion(word: String) {
+        repeat(fakeSuggestions.prefixLength()) { textEditor.deleteBackward() }
+        textEditor.insertText("$word ")
+        fakeSuggestions.accept()
+        if (model.shiftState == ShiftState.ONCE) model.shiftState = ShiftState.OFF
+        refreshSuggestionBar()
+    }
+
+    private fun refreshSuggestionBar() {
+        val content = fakeSuggestions.content()
+        model.suggestions = content.suggestions
+        model.unrecognizedTyped = content.literal
+        model.learnedDisplayWords = content.learned
+        model.fallbackSuggestions = content.fallback
     }
 
     private val textEditor = object : TextEditor {
