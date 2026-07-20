@@ -122,19 +122,19 @@ keyboard background (D-017).
 | `ui/theme/KeyboardColors` | Palette roles in use, resolved from `uiMode` | Forced themes (Stage 7) |
 | `onboarding/MainActivity` | Enable/switch shortcuts (verified) | Unchanged |
 
-**Data flow today** is trivial (no input handling). The target
-pipeline, fixed in `docs/ANDROID_ARCHITECTURE_PLAN.md` §4–§8, mirrors
-iOS: key touch → model handles → `InputConnection` edit → suggestions
-refresh; host change (`onUpdateSelection`) → sync pipeline in fixed
-order (host-clear learn → resync composed word → shift re-evaluation →
-suggestions).
+**Data flow today**: key touch → `KeyRow` gesture surface → service →
+`model.handleKey` → `TextEditor` (`InputConnection`) edit; host change
+(`onUpdateSelection`) → shift re-evaluation. The full sync pipeline
+(host-clear learn → composed-word resync → shift → suggestions), fixed
+in `docs/ANDROID_ARCHITECTURE_PLAN.md` §4–§8, arrives with Stage 5 —
+its callback order is parity-critical.
 
-**Extension points for Stage 2**: new packages `layout/` (pure truth
-table), `model/` (KeyboardModel first slice), `ime/EditorState.kt`
-(pure `EditorInfo` mapping), `ui/keys/` (RowView + KeyButton);
-`KeyboardColors` regains `letterKeyPressed` and `label` roles when
-KeyButton uses them (they were removed in the Stage 1 audit as
-not-yet-used).
+**Extension points for Stage 4+**: the suggestion bar composables slot
+into the reserved 36 dp area in `KeyboardView`; the engine (Stage 5)
+adds `store/WordSuggestions` and the composed-word tracking to the
+model; `KeyboardColors` grows roles as they come into use (it
+deliberately holds only what is used — a Stage 1 audit rule; e.g. it
+regained `letterKeyPressed` and `label` once KeyButton used them).
 
 ## 4. Documentation map
 
