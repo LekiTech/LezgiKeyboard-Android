@@ -220,7 +220,30 @@ window (0.35 s), digraph casing («Къ»/«КЪ»).
 
 ## Stage 4 — Suggestion bar UI + animations
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- The per-glyph machinery maps to Compose as: a backing glyph string
+  that may keep a hidden zero-width tail while a shortened glyph
+  animates out; per-glyph `AnimatedVisibility` (fade + horizontal
+  expand/shrink, 0.2 s easeOut) for prefix morphs; a `generation`
+  remount with per-glyph staggered `Animatable`s (22 ms × index) for
+  the new-word settle. Glyphs present at remount skip the enter
+  animation — the ripple owns their appearance; only morph-added
+  glyphs fade/expand in.
+- The overflow fallback (plain label, no morph) is approximated by
+  glyph count until the real engine brings real words — revisit with
+  measured text in Stage 5 if needed.
+- Driven by `FakeSuggestionSource` (model package, clearly marked):
+  prefix-derived candidates with the middle one posing as learned, a
+  static idle trio. Deleted wholesale in Stage 5.
+- Emulator-verified: idle trio spread evenly; typing shows the quoted
+  literal «еп» plus two candidates in content-sized cells; 0.5 s hold
+  on the learned candidate swaps in the inline «“епди” чӏурдани?» row
+  with «Ваъ»/«Чӏурун» pills; «Ваъ» restores the bar; tapping the
+  literal replaced the prefix with «еп » and returned the bar to
+  idle. Animation feel (morph/ripple) is judged on device by the
+  owner.
 
 **Objective**: pixel- and motion-faithful bar, driven by fake data.
 
