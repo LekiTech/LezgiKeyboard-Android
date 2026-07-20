@@ -249,6 +249,12 @@ window (0.35 s), digraph casing («Къ»/«КЪ»).
   key returned with exact iOS semantics (D-027, superseding D-022);
   dark mode switched to Android-native system surfaces (D-028) so the
   keyboard blends with the system chrome like native keyboards do.
+- Second A52 round: the globe now opens the system input-method picker
+  instead of cycling (D-029 — the third-party convention on Samsung,
+  where direct cycling strands users), and renders as a monochrome
+  vector like every other icon. Samsung's own switcher surfaces (its
+  globe menu, the One UI navbar keyboard button) never list foreign
+  IMEs — confirmed expected One UI behavior, not a declaration issue.
 
 **Objective**: pixel- and motion-faithful bar, driven by fake data.
 
