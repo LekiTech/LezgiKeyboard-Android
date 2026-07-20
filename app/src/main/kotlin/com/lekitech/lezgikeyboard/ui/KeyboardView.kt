@@ -10,55 +10,56 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.lekitech.lezgikeyboard.layout.KeyCap
+import com.lekitech.lezgikeyboard.layout.LezgiLayout
+import com.lekitech.lezgikeyboard.model.KeyboardModel
+import com.lekitech.lezgikeyboard.ui.keys.KeyRow
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 
 /**
  * Root keyboard view. The vertical budget is the fixed-height contract
  * (ANDROID_PORT_CONTEXT.md §3): 36 suggestion bar + 8 gap + 4×43 key
  * rows + 3×11 row gaps + 1 slack = 250. System navigation insets are
- * padded outside the 250dp content (D-009).
- *
- * Stage 1 renders the contract as placeholder blocks; the real key grid
- * replaces the placeholders in Stage 2.
+ * padded outside the 250 dp content (D-009). All state decisions live
+ * in `KeyboardModel`; this view draws and reports key taps.
  */
 @Composable
-fun KeyboardView() {
+fun KeyboardView(model: KeyboardModel, onKey: (KeyCap) -> Unit) {
     val colors = KeyboardColors.resolve(isSystemInDarkTheme())
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.keyboardBackground)
             .navigationBarsPadding(),
-        contentAlignment = Alignment.TopCenter,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp),
+                .height(LezgiLayout.KEYBOARD_HEIGHT.dp),
         ) {
-            // Suggestion bar area: present from day one so the height
-            // contract never changes when content arrives.
-            Spacer(modifier = Modifier.height(36.dp))
-            Spacer(modifier = Modifier.height(8.dp))
+            // Suggestion bar area: reserved from day one so the total
+            // height never changes when content arrives (Stage 4).
+            Spacer(modifier = Modifier.height(LezgiLayout.SUGGESTION_BAR_HEIGHT.dp))
+            Spacer(modifier = Modifier.height(LezgiLayout.BAR_GAP.dp))
 
-            // Key rows: 4 × 43 with 11 gaps, 6 side padding.
+            val rows = model.rows(model.needsGlobe)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(11.dp),
+                    .padding(horizontal = LezgiLayout.SIDE_PADDING.dp),
+                verticalArrangement = Arrangement.spacedBy(LezgiLayout.ROW_SPACING.dp),
             ) {
-                repeat(4) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(43.dp)
-                            .background(colors.letterKey, RoundedCornerShape(8.dp)),
+                rows.forEachIndexed { index, row ->
+                    KeyRow(
+                        row = row,
+                        rowIndex = index,
+                        totalRows = rows.size,
+                        returnAction = model.returnAction,
+                        colors = colors,
+                        onKey = onKey,
                     )
                 }
             }

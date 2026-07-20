@@ -1,19 +1,29 @@
 package com.lekitech.lezgikeyboard.ime
 
+import android.content.Context
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.platform.ComposeView
+import com.lekitech.lezgikeyboard.layout.KeyCap
+import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.KeyboardModel
+import com.lekitech.lezgikeyboard.model.TextEditor
 import com.lekitech.lezgikeyboard.ui.KeyboardView
 
 /**
- * IME entry point: hosts the Compose keyboard and owns the fixed-height
- * contract (the keyboard determines its own height — never the host).
- * Text operations, model wiring, and the event pipeline arrive with the
- * later stages; Stage 1 proves the geometry on device.
+ * IME entry point: hosts the Compose keyboard, owns the fixed-height
+ * contract and the `InputConnection`, and wires the view's key reports
+ * into `KeyboardModel` through the narrow `TextEditor` surface. The
+ * host-sync pipeline (composed word, shift, suggestions) arrives with
+ * Stages 3–5.
  */
 class LezgiInputMethodService : InputMethodService() {
 
     private lateinit var imeLifecycleOwner: ImeLifecycleOwner
+    private val model = KeyboardModel()
 
     override fun onCreate() {
         super.onCreate()
@@ -30,9 +40,15 @@ class LezgiInputMethodService : InputMethodService() {
         val view = ComposeView(this)
         imeLifecycleOwner.attach(view)
         view.setContent {
-            KeyboardView()
+            KeyboardView(model = model, onKey = ::handleKey)
         }
         return view
+    }
+
+    override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(editorInfo, restarting)
+        model.returnAction = EditorState.returnAction(editorInfo)
+        model.needsGlobe = offersInputMethodSwitch()
     }
 
     // Never use fullscreen extract mode: the platform default turns it on
@@ -45,4 +61,72 @@ class LezgiInputMethodService : InputMethodService() {
         imeLifecycleOwner.onDestroy()
         super.onDestroy()
     }
+
+    private fun handleKey(cap: KeyCap) {
+        if (cap == KeyCap.Globe) {
+            switchToNextKeyboard()
+            return
+        }
+        model.handleKey(cap, textEditor)
+    }
+
+    private val textEditor = object : TextEditor {
+
+        override fun insertText(text: String) {
+            currentInputConnection?.commitText(text, 1)
+        }
+
+        override fun deleteBackward() {
+            val ic = currentInputConnection ?: return
+            // An active selection deletes as a whole, like the hardware
+            // delete key would.
+            if (!ic.getSelectedText(0).isNullOrEmpty()) {
+                ic.commitText("", 1)
+                return
+            }
+            // deleteSurroundingText counts UTF-16 units — remove both
+            // halves of a surrogate pair so astral characters (emoji
+            // typed by other keyboards) are never split.
+            val before = ic.getTextBeforeCursor(2, 0)
+            val step = if (
+                before != null && before.length >= 2 &&
+                Character.isSurrogatePair(before[before.length - 2], before[before.length - 1])
+            ) 2 else 1
+            ic.deleteSurroundingText(step, 0)
+        }
+
+        override fun performReturn() {
+            val ic = currentInputConnection ?: return
+            val action = model.returnAction
+            if (action == ReturnKeyAction.NONE) {
+                ic.commitText("\n", 1)
+            } else {
+                ic.performEditorAction(EditorState.imeActionId(action))
+            }
+        }
+    }
+
+    // MARK: - Input-method switching (globe key)
+
+    private fun offersInputMethodSwitch(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return shouldOfferSwitchingToNextInputMethod()
+        }
+        val token = window?.window?.attributes?.token ?: return false
+        @Suppress("DEPRECATION")
+        return inputMethodManager.shouldOfferSwitchingToNextInputMethod(token)
+    }
+
+    private fun switchToNextKeyboard() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            switchToNextInputMethod(false)
+            return
+        }
+        val token = window?.window?.attributes?.token ?: return
+        @Suppress("DEPRECATION")
+        inputMethodManager.switchToNextInputMethod(token, false)
+    }
+
+    private val inputMethodManager: InputMethodManager
+        get() = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 }
