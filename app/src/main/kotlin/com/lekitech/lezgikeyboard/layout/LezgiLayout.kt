@@ -151,9 +151,8 @@ object LezgiLayout {
         KeyCap.Numbers -> "123"
         KeyCap.Symbols -> "#+="
         KeyCap.Letters -> "АБВ"
-        KeyCap.Globe -> "🌐"
         KeyCap.Emoji -> "😀"
-        KeyCap.Settings, KeyCap.Space, KeyCap.Return -> ""
+        KeyCap.Globe, KeyCap.Settings, KeyCap.Space, KeyCap.Return -> ""
     }
 
     // MARK: - Key width weights (relative; rows normalize by their sum)

@@ -370,3 +370,24 @@ keyboards (Samsung, Gboard) blend into the system chrome in dark mode;
 the iOS grays visibly separated ours from the navigation area. The
 iOS-inspired geometry stays; only the dark color semantics are
 Android's.
+
+## D-029 (2026-07-19) — The globe opens the system input-method picker
+
+Tapping the globe calls `InputMethodManager.showInputMethodPicker()` —
+the standard «Choose input method» dialog — instead of cycling IMEs
+directly with `switchToNextInputMethod` (which iOS's globe does).
+Refines D-027: the visibility condition is unchanged; only the action
+differs. The globe renders as a monochrome vector like every other key
+icon, not the color emoji glyph iOS uses.
+
+*Why*: completed root cause from Galaxy A52 testing. Samsung Keyboard
+offers no third-party switch path at all — its globe switches only its
+own languages and the One UI navigation-bar keyboard button opens
+Samsung's own options sheet (both expected One UI behavior; no
+declaration of ours can change them, and our IME's presence in the
+system picker proves discovery is correct). The ecosystem convention
+compensates: third-party keyboards (Gboard included) expose the system
+picker from their globe, making it the one switching hub that works
+everywhere. Direct cycling — the earlier D-027 action — strands users
+on keyboards with no way back. D-023 divergence: the Android
+convention beats the iOS mechanism on real devices.

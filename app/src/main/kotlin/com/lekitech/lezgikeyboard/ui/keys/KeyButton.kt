@@ -146,6 +146,7 @@ private fun KeyLabel(
         )
         KeyCap.Settings -> KeyIcon(R.drawable.ic_key_settings, 24.dp, colors)
         KeyCap.Emoji -> KeyIcon(R.drawable.ic_key_emoji, 24.dp, colors)
+        KeyCap.Globe -> KeyIcon(R.drawable.ic_key_globe, 22.dp, colors)
 
 
         KeyCap.Return -> when {

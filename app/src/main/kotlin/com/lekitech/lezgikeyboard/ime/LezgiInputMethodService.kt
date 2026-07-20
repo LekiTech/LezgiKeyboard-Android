@@ -162,7 +162,11 @@ class LezgiInputMethodService : InputMethodService() {
 
     private fun handleKey(cap: KeyCap) {
         if (cap == KeyCap.Globe) {
-            switchToNextKeyboard()
+            // The Android convention (D-029): third-party keyboards
+            // open the system picker, the one switching hub that works
+            // everywhere — direct cycling strands users on keyboards
+            // that offer no way back (Samsung/One UI).
+            inputMethodManager.showInputMethodPicker()
             return
         }
         model.handleKey(cap, textEditor)
@@ -220,16 +224,6 @@ class LezgiInputMethodService : InputMethodService() {
     private fun systemDrawsImeSwitcher(): Boolean {
         val id = resources.getIdentifier("config_imeDrawsImeNavBar", "bool", "android")
         return id != 0 && resources.getBoolean(id)
-    }
-
-    private fun switchToNextKeyboard() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            switchToNextInputMethod(false)
-            return
-        }
-        val token = window?.window?.attributes?.token ?: return
-        @Suppress("DEPRECATION")
-        inputMethodManager.switchToNextInputMethod(token, false)
     }
 
     private val inputMethodManager: InputMethodManager
