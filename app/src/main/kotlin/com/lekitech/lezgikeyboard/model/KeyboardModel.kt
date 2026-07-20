@@ -27,6 +27,12 @@ class KeyboardModel {
     var page by mutableStateOf(KeyboardPage.LETTERS)
     var returnAction by mutableStateOf(ReturnKeyAction.NONE)
 
+    /**
+     * The globe key shows only when the OS offers no switcher of its
+     * own (D-027) — the exact iOS `needsInputModeSwitchKey` semantics.
+     */
+    var needsGlobe by mutableStateOf(false)
+
     /** Tap cycles off → once → capsLock → off; "once" consumes itself. */
     var shiftState by mutableStateOf(ShiftState.ONCE)
     var autocapMode = AutocapMode.SENTENCES
@@ -73,9 +79,6 @@ class KeyboardModel {
     /** Punctuation that returns from the numbers/symbols pages to letters. */
     private val returnsToLetters = setOf(".", ",", "?", "!", "'")
 
-    // Input-method switching is the system's job: Android always offers
-    // its own switcher when several keyboards are enabled (DECISIONS.md
-    // D-022), so no page carries a globe key.
     fun rows(): List<List<KeyCap>> {
         val main = when (page) {
             KeyboardPage.LETTERS -> LezgiLayout.letterRows(layoutVariant)
@@ -91,14 +94,19 @@ class KeyboardModel {
             add(KeyCap.Numbers)
             add(KeyCap.Settings)
             add(KeyCap.Emoji)
+            if (needsGlobe) add(KeyCap.Globe)
             add(KeyCap.Space)
             // «ъ» sits next to the space bar in the classic variant and
             // moves to the top letter row in the topRow variant
             if (layoutVariant == LayoutVariant.CLASSIC) add(KeyCap.Character("ъ"))
             add(KeyCap.Return)
         }
-        KeyboardPage.NUMBERS, KeyboardPage.SYMBOLS ->
-            listOf(KeyCap.Letters, KeyCap.Space, KeyCap.Return)
+        KeyboardPage.NUMBERS, KeyboardPage.SYMBOLS -> buildList {
+            add(KeyCap.Letters)
+            if (needsGlobe) add(KeyCap.Globe)
+            add(KeyCap.Space)
+            add(KeyCap.Return)
+        }
         KeyboardPage.EMOJI -> emptyList()
     }
 
@@ -168,8 +176,9 @@ class KeyboardModel {
             KeyCap.Letters -> page = KeyboardPage.LETTERS
 
             // The emoji page arrives with Stage 8, the settings panel
-            // with Stage 7.
-            KeyCap.Emoji, KeyCap.Settings -> Unit
+            // with Stage 7; the globe never reaches the model (the
+            // service switches input methods directly).
+            KeyCap.Emoji, KeyCap.Settings, KeyCap.Globe -> Unit
         }
     }
 

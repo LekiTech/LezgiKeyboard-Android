@@ -2,12 +2,14 @@ package com.lekitech.lezgikeyboard.ime
 
 import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.platform.ComposeView
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
@@ -96,6 +98,7 @@ class LezgiInputMethodService : InputMethodService() {
         super.onStartInputView(editorInfo, restarting)
         model.returnAction = EditorState.returnAction(editorInfo)
         model.autocapMode = EditorState.autocapMode(editorInfo)
+        model.needsGlobe = needsGlobeKey()
         model.updateShiftFromContext(textEditor)
         // Keyboard name flashed on the spacebar for 1.5 s per appearance
         model.showsKeyboardName = true
@@ -158,6 +161,10 @@ class LezgiInputMethodService : InputMethodService() {
     }
 
     private fun handleKey(cap: KeyCap) {
+        if (cap == KeyCap.Globe) {
+            switchToNextKeyboard()
+            return
+        }
         model.handleKey(cap, textEditor)
         // Deleting can cross a sentence boundary; the shift state follows
         if (cap == KeyCap.Backspace) {
@@ -189,6 +196,44 @@ class LezgiInputMethodService : InputMethodService() {
         model.learnedDisplayWords = content.learned
         model.fallbackSuggestions = content.fallback
     }
+
+    // MARK: - Input-method switching (globe key, D-027)
+    //
+    // The globe mirrors the iOS `needsInputModeSwitchKey` semantics:
+    // it appears only when switching is wanted AND the system draws no
+    // switcher of its own. Stock Android 15+ shows one in the IME
+    // navigation band (`imeDrawsImeNavBar`); Samsung/One UI with
+    // gesture navigation shows none, leaving Settings as the only way
+    // back to this keyboard without the key.
+
+    private fun needsGlobeKey(): Boolean {
+        if (systemDrawsImeSwitcher()) return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            shouldOfferSwitchingToNextInputMethod()
+        } else {
+            val token = window?.window?.attributes?.token ?: return false
+            @Suppress("DEPRECATION")
+            inputMethodManager.shouldOfferSwitchingToNextInputMethod(token)
+        }
+    }
+
+    private fun systemDrawsImeSwitcher(): Boolean {
+        val id = resources.getIdentifier("config_imeDrawsImeNavBar", "bool", "android")
+        return id != 0 && resources.getBoolean(id)
+    }
+
+    private fun switchToNextKeyboard() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            switchToNextInputMethod(false)
+            return
+        }
+        val token = window?.window?.attributes?.token ?: return
+        @Suppress("DEPRECATION")
+        inputMethodManager.switchToNextInputMethod(token, false)
+    }
+
+    private val inputMethodManager: InputMethodManager
+        get() = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
 
     private val textEditor = object : TextEditor {
 

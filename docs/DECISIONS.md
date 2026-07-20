@@ -248,7 +248,7 @@ the 48 dp band). Reserving the band restores reliable bottom-row input;
 the content contract stays 250 dp with the system band outside it,
 exactly like iOS above the home indicator.
 
-## D-022 (2026-07-19) — No in-keyboard globe key
+## D-022 (2026-07-19) — No in-keyboard globe key — SUPERSEDED by D-027
 
 The keyboard carries no input-method switch key on any page. The
 `supportsSwitchingToNextInputMethod` declaration stays in `method.xml`
@@ -336,3 +336,37 @@ third-party IMEs (`InputConnection` is text-index based;
 support), so editor-driven stepping is the ceiling of what Android
 allows. Rare non-standard editors will treat the events like hardware
 arrow keys — acceptable by construction.
+
+## D-027 (2026-07-19) — Conditional globe key, iOS semantics
+
+The globe key is back, but conditional: it appears only when
+`shouldOfferSwitchingToNextInputMethod()` is true AND the system does
+not draw its own IME switcher (`config_imeDrawsImeNavBar` false).
+Supersedes D-022, whose premise — "Android always provides its own
+switcher" — proved false on Samsung/One UI (Android 14, gesture
+navigation): Samsung Keyboard's globe menu switches only its own
+languages, and no system switcher affordance exists near the keyboard,
+leaving Settings as the only way back to this IME. This is the exact
+iOS `needsInputModeSwitchKey` design the spec describes in §2: the
+globe appears only when the OS requires it. On stock Android 15+ with
+the navigation-band switcher the key stays hidden — no duplication.
+
+*Why*: found by owner testing on a Galaxy A52 (Android 14). The
+required IME declarations were all verified present and correct; the
+gap was environmental, not a manifest issue.
+
+## D-028 (2026-07-19) — Android-native dark surfaces
+
+Dark mode uses Android's own surface colors for the three keyboard
+surfaces — background `system_neutral1_900`, keys `system_neutral1_800`,
+pressed `system_neutral1_600` (dynamic, API 31+; Material dark grays
+as static fallbacks below) — instead of the iOS dark grays. Light mode,
+label colors, and the panel/menu palette are unchanged, as are all
+geometry, spacing, and animations. Refines D-017's dark stand-ins;
+Stage 7's forced-dark theme uses this same palette.
+
+*Why*: D-023 divergence, owner-directed after device testing — native
+keyboards (Samsung, Gboard) blend into the system chrome in dark mode;
+the iOS grays visibly separated ours from the navigation area. The
+iOS-inspired geometry stays; only the dark color semantics are
+Android's.
