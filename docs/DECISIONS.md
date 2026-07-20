@@ -214,3 +214,34 @@ the gating documents outweighs tidiness. The iOS repository keeps the
 port-context document under `docs/` because there it is an *export
 produced for* this project; here the same document is the *governing
 contract*, which earns it root placement.
+
+## D-020 (2026-07-19) — Key label sizes are density-fixed
+
+Key and bar label sizes are specified in dp and converted to sp through
+the current density (`Dp.toSp()`), so the system font-size setting does
+not scale them.
+
+*Why*: the keyboard's geometry is a fixed contract (§3–§4); labels that
+scale with the font setting outgrow their keys and break the visual
+match. iOS keyboard extensions ignore Dynamic Type the same way, so
+fixed sizes are also the parity-correct behavior.
+
+## D-021 (2026-07-19) — The framework's IME navigation-bar band is reserved
+
+With gesture navigation, `InputMethodService` draws its own back and
+IME-switcher buttons **inside the IME window** (`imeDrawsImeNavBar`) in
+a band of `navigation_bar_frame_height` (48 dp), while the window's
+`navigationBars` inset reports only 24 dp — the buttons' touch targets
+shadow anything placed in the difference. The keyboard reserves
+`max(navigationBars inset, that band)` below its 250 dp content
+(`ui/BottomInset.kt`); the internal-resource lookup is a
+framework-required accommodation with a graceful fallback to the plain
+inset.
+
+*Why*: found during Stage 2 device verification — taps on the
+bottom-left «123» key landed on the framework's back button and hid the
+keyboard (`HIDE_SOFT_INPUT_BY_BACK_KEY`, `fromUser=true` in ImeTracker,
+with the `NavigationBarFrame` at window coordinates 593–719 confirming
+the 48 dp band). Reserving the band restores reliable bottom-row input;
+the content contract stays 250 dp with the system band outside it,
+exactly like iOS above the home indicator.
