@@ -103,7 +103,25 @@ proven on a real device before any keys exist.
 
 ## Stage 2 — Keyboard layout + typing
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- The framework's IME navigation-bar band (48 dp, drawn inside our
+  window with gesture navigation) shadowed the bottom key row's touch
+  targets — taps on «123» hit the system back button and hid the
+  keyboard. Fixed by reserving the band below the 250 dp content
+  (D-021, `ui/BottomInset.kt`).
+- Key label sizes are density-fixed so the system font-size setting
+  cannot break the geometry (D-020).
+- `EditorState` currently parses only the return action (the fields
+  Stage 2 consumes); the autocapitalization mode and password flag join
+  in Stages 3 and 5 respectively.
+- Emulator-verified: letters/numbers/symbols pages render with correct
+  weights and icons; «йцӏх» commits with the Cyrillic palochka; «123 →
+  #+= → ?» switches pages and the punctuation returns to letters with
+  the character committed; a search field renders the magnifier return
+  key. Reinstalling the APK deselects the IME (Android behavior) — 
+  re-select it before testing.
 
 **Objective**: full static layout with working text input on all three
 character pages.
