@@ -278,7 +278,34 @@ text; empty-slot collapsing (1/2/3 words); confirm row appearance.
 
 ## Stage 5 — Prediction engine + bundled dictionary
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- `store/WordSuggestions` ports the iOS queries verbatim (unescaped
+  prefix LIKE ordered by length, exact contains, random trio); the
+  asset copies into `noBackupFilesDir` and re-copies when the app
+  version changes, so dictionary updates ship with releases. Open
+  failures degrade to a null store — the keyboard types without
+  suggestions rather than crashing.
+- The engine lives in `KeyboardModel` exactly as on iOS: local
+  `composedWord` (updated synchronously per keystroke, resynced on
+  every `onUpdateSelection`), `wordPrefix` with the iOS separator set,
+  the three-state `updateSuggestions` pipeline, `displayForm`
+  capitalization, resume-word backspace, and acceptance replacing
+  `max(context prefix, composed word)` characters. Learned candidates,
+  next-word, host-clear learning, and metrics slot into the marked
+  seams in Stage 6+.
+- Private fields (password variations + `IME_FLAG_NO_PERSONALIZED_LEARNING`)
+  render an empty bar per D-015.
+- `FakeSuggestionSource` deleted; zero scaffolding references remain
+  (grep-verified).
+- Emulator-verified with real data: «кӏв» → literal «кӏв» + кӏве,
+  кӏвал (S1); accepting кӏвал replaced the prefix and committed
+  «кӏвал » (S3); one backspace resumed the full word — bar showed
+  кӏвал, кӏвалах, кӏвалин unquoted (S11, S2); further deletion
+  shortened the prefix live (S12); erasing to empty rolled a random
+  idle trio, capitalized by the sentence-start rule
+  («Тӏанутӏ Жумартвалун Лётчиквал» — S13, S5).
 
 **Objective**: real suggestions from the bundled dictionary with the
 full composition model.
