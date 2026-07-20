@@ -50,7 +50,17 @@ object LezgiLayout {
     const val SIDE_PADDING = 6
     const val SUGGESTION_BAR_HEIGHT = 36
     const val BAR_GAP = 8
+
+    /** The iOS height contract: 36 + 8 + 4×43 + 3×11 + 1 slack. */
     const val KEYBOARD_HEIGHT = 250
+
+    /**
+     * Extra space above the suggestion-bar area so top-row previews
+     * (54 + 11 above the key) and callouts (54 + 16 − 9) render at
+     * their natural offsets instead of clamping down over the key like
+     * iOS does. Owner-decided Android refinement — DECISIONS.md D-024.
+     */
+    const val OVERLAY_HEADROOM = 21
 
     // MARK: - Letter rows
     //

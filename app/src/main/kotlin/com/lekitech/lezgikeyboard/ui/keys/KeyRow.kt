@@ -307,9 +307,9 @@ private const val BACKSPACE_DECAY = 0.85
 
 private fun now(): Long = SystemClock.uptimeMillis()
 
-/** Distance from the keyboard top to this row's top (bar + gap + rows above). */
+/** Distance from the keyboard top to this row's top (headroom + bar + gap + rows above). */
 private fun rowTopInKeyboard(rowIndex: Int): Dp =
-    (LezgiLayout.SUGGESTION_BAR_HEIGHT + LezgiLayout.BAR_GAP +
+    (LezgiLayout.OVERLAY_HEADROOM + LezgiLayout.SUGGESTION_BAR_HEIGHT + LezgiLayout.BAR_GAP +
         rowIndex * (LezgiLayout.KEY_HEIGHT + LezgiLayout.ROW_SPACING)).dp
 
 /** The return key adapts its width to its label; everything else is static. */

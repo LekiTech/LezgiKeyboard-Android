@@ -22,9 +22,10 @@ import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 /**
  * Root keyboard view. The vertical budget is the fixed-height contract
  * (ANDROID_PORT_CONTEXT.md §3): 36 suggestion bar + 8 gap + 4×43 key
- * rows + 3×11 row gaps + 1 slack = 250. System navigation insets are
- * padded outside the 250 dp content (D-009). All state decisions live
- * in `KeyboardModel`; this view draws and reports key taps.
+ * rows + 3×11 row gaps + 1 slack = 250, plus the Android-specific
+ * overlay headroom above the bar (D-024). System navigation insets are
+ * padded outside the content (D-009). All state decisions live in
+ * `KeyboardModel`; this view draws and reports key taps.
  */
 @Composable
 fun KeyboardView(
@@ -44,10 +45,12 @@ fun KeyboardView(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(LezgiLayout.KEYBOARD_HEIGHT.dp),
+                .height((LezgiLayout.OVERLAY_HEADROOM + LezgiLayout.KEYBOARD_HEIGHT).dp),
         ) {
-            // Suggestion bar area: reserved from day one so the total
-            // height never changes when content arrives (Stage 4).
+            // Headroom for top-row previews and callouts (D-024), then
+            // the suggestion bar area — reserved from day one so the
+            // geometry never changes when content arrives (Stage 4).
+            Spacer(modifier = Modifier.height(LezgiLayout.OVERLAY_HEADROOM.dp))
             Spacer(modifier = Modifier.height(LezgiLayout.SUGGESTION_BAR_HEIGHT.dp))
             Spacer(modifier = Modifier.height(LezgiLayout.BAR_GAP.dp))
 

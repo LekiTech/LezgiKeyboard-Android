@@ -274,3 +274,20 @@ recommendation — before anything is implemented. The owner decides;
 deliberate divergences are recorded here. Mechanical copying of iOS
 where Android is genuinely better is as wrong as silent Android-isms
 where parity matters.
+
+## D-024 (2026-07-19) — Overlay headroom above the suggestion bar
+
+The keyboard reserves 21 dp of extra space above the suggestion-bar
+area (total content 271 dp vs the iOS 250), so top-row key previews
+and callouts render at their natural offsets from the pressed key. iOS
+instead clamps both downward over the key on the top row; that clamp
+stays in the code as a safety net but no longer engages. 21 dp is the
+exact requirement of the taller overlay: previews need 54 + 11 above
+the key (65 vs the 44 available), callouts 54 + 16 − 9 (61).
+
+*Why*: owner-decided refinement under D-023 — callout legibility over
+an otherwise empty corner of the bar area. Accepted costs, reviewed
+before implementation: the keyboard silhouette is 21 dp taller than
+iOS (most noticeable in landscape); the divergence must be remembered
+against §3. The bar *content* area is untouched — exactly 36 dp with
+an 8 dp gap, so the Stage 4 suggestion-bar spec applies unchanged.
