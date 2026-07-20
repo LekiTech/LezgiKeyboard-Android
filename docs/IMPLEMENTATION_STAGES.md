@@ -103,7 +103,9 @@ proven on a real device before any keys exist.
 
 ## Stage 2 — Keyboard layout + typing
 
-**Status: implemented 2026-07-19 — awaiting device verification**
+**Status: done (2026-07-19)** — owner-verified on device: layout,
+typing, page switching, editor integration, and geometry all confirmed;
+UI matches the design goals (globe removed per D-022, gear redrawn).
 
 **Findings**
 - The framework's IME navigation-bar band (48 dp, drawn inside our
