@@ -244,6 +244,11 @@ window (0.35 s), digraph casing («Къ»/«КЪ»).
   literal replaced the prefix with «еп » and returned the bar to
   idle. Animation feel (morph/ripple) is judged on device by the
   owner.
+- Galaxy A52 (Android 14) polish: Samsung/One UI gesture navigation
+  offers no system IME-switcher affordance, so the conditional globe
+  key returned with exact iOS semantics (D-027, superseding D-022);
+  dark mode switched to Android-native system surfaces (D-028) so the
+  keyboard blends with the system chrome like native keyboards do.
 
 **Objective**: pixel- and motion-faithful bar, driven by fake data.
 
