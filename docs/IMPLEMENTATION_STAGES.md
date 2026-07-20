@@ -334,7 +334,29 @@ S13, S17.
 
 ## Stage 6 — Learning store + ranking
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- `store/LearnedWords` ports the iOS schema and every formula verbatim
+  (WAL, `meta`/`user_word`/`user_bigram`, ranking
+  `(count + 3·picked) × recency ×2 × (1 + min(bigram, 4))`, decay every
+  2000 events, prune every 200, caps 5000/10000, digraph-aware
+  learnability, filters-version purge; the iOS-only palochka migration
+  is deliberately not ported — Android starts clean).
+- Android pitfall: `rawQuery` binds args as TEXT and SQLite does not
+  coerce text in numeric comparisons — numeric values are interpolated
+  into the SQL (internal constants only; text stays bound).
+- Learning triggers: terminators `. , ? ! ; :`, space, return,
+  suggestion acceptance (picked), and host-clear send detection inside
+  the resync — all guarded by the private-field flag (D-015).
+  `lastCompletedWord` never crosses `. ! ?`, double-space, or return.
+- Emulator-verified: three typed completions of «зэз» made it a
+  learned suggestion above the dictionary (S6) and produced a bigram
+  that surfaced as a single centered next-word prediction (S8);
+  long-press → «“зэз” чӏурдани?» → «Чӏурун» deleted the real record
+  and the word became a quoted literal again (S9). Host-clear learning
+  and picked-weight (S7) are implemented per spec; verifying them
+  needs a real messenger send — owner device pass.
 
 **Objective**: the personal model — learning, ranking, next-word.
 
