@@ -45,7 +45,8 @@ scope unless explicitly requested.
 `docs/ANDROID_ARCHITECTURE_PLAN.md` (structure), `docs/DECISIONS.md`
 (this log). Any architectural decision made during development updates
 the appropriate document in the same change. Architecture never exists
-only in code.
+only in code. Refined by D-019: a small set of normative contracts and
+entry points deliberately stays in the repository root.
 
 ## D-005 (2026-07-19) — Components mirror iOS one-to-one
 
@@ -187,3 +188,29 @@ owns its height, the host is never restyled) and has no iOS
 counterpart — the keyboard is always just the keyboard. Found during
 the Stage 1 audit: in landscape the IME window grew to 943 px instead
 of the contract height.
+
+## D-019 (2026-07-19) — Two-tier documentation layout
+
+Documentation is organized in two deliberate tiers (refines D-004):
+
+- **Repository root** — normative contracts and entry points only:
+  `ANDROID_PORT_CONTEXT.md` (the behavioral specification),
+  `BEHAVIOR_SCENARIOS.md` (the acceptance suite), `README.md` (public
+  overview), `HANDOFF.md` (continuation guide). These gate all work
+  and must be unmissable on first contact with the repository — the
+  first thing seen on the hosting landing page or in a directory
+  listing.
+- **`docs/`** — living engineering records consulted and updated
+  *during* work: the architecture plan, the iOS parity notes, this
+  decision log, the stage log.
+
+New documentation defaults to `docs/` unless it is a normative project
+contract or a repository entry point. The root set is intentionally
+small and stable; do not "tidy" the root documents into `docs/`.
+
+*Why*: the failure mode that matters is someone starting work without
+having read the contract, not filesystem clutter. Discoverability of
+the gating documents outweighs tidiness. The iOS repository keeps the
+port-context document under `docs/` because there it is an *export
+produced for* this project; here the same document is the *governing
+contract*, which earns it root placement.
