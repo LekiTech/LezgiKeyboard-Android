@@ -38,10 +38,10 @@ also enable «show on-screen keyboard while hardware keyboard is active»
 
 ## Status
 
-Stages 1–3 of 8 complete (see
+Stages 1–6 of 8 complete (see
 [docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md)): the
-fixed-height IME, the full three-page layout with working typing, and
-all key interactions — Shift/Caps Lock with auto-capitalization, press
-bubbles, long-press callouts for the Lezgi digraphs, backspace repeat,
-space-bar cursor mode, double-space period, and the gear layout menu.
-Stage 4 (suggestion bar UI + animations) is next.
+fixed-height IME, the full three-page layout with typing and every key
+interaction, the animated suggestion bar, and the complete on-device
+intelligence — bundled-dictionary predictions, the personal learned
+store with iOS-compatible ranking, and bigram next-word suggestions.
+Stage 7 (in-keyboard settings panel + themes) is next.

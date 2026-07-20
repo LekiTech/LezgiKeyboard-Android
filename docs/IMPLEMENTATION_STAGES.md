@@ -220,7 +220,9 @@ window (0.35 s), digraph casing («Къ»/«КЪ»).
 
 ## Stage 4 — Suggestion bar UI + animations
 
-**Status: implemented 2026-07-19 — awaiting device verification**
+**Status: done (2026-07-19)** — owner-approved after testing on a
+Galaxy A52 (One UI / Android 14), including the switching and
+dark-theme polish rounds.
 
 **Findings**
 - The per-glyph machinery maps to Compose as: a backing glyph string
@@ -278,7 +280,8 @@ text; empty-slot collapsing (1/2/3 words); confirm row appearance.
 
 ## Stage 5 — Prediction engine + bundled dictionary
 
-**Status: implemented 2026-07-19 — awaiting device verification**
+**Status: done (2026-07-19)** — owner-approved; emulator-verified
+S1/S2/S3/S5/S11/S12/S13 flows recorded below.
 
 **Findings**
 - `store/WordSuggestions` ports the iOS queries verbatim (unescaped

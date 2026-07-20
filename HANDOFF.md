@@ -21,17 +21,17 @@ behavior.
 module, no DI framework, no INTERNET permission, `allowBackup=false`.
 minSdk 26, targetSdk 36.
 
-**Current status.** Stages 1–3 of 8 complete (tags `stage-1` …
-`stage-3`): fixed-height IME shell, full three-page layout with
-working typing, and all key interactions (Shift/Caps Lock +
-auto-capitalization, press bubbles, digraph callouts, backspace
-repeat, space-cursor mode, double-space period, gear layout menu, name
-flash). The suggestion bar is still an empty reserved area — its UI,
-engine, learning, settings, and emoji page are Stages 4–8. The
-decision log runs D-001…D-026; note especially D-025 (transient
-overlays float in a pass-through window strip above the visible
-keyboard) and D-026 (vertical cursor-mode steps are DPAD events —
-deliberately better than iOS on wrapped lines, per D-023).
+**Current status.** Stages 1–6 of 8 complete: fixed-height IME
+shell, three-page layout with typing, all key interactions, the
+animated suggestion bar, and the full intelligence — dictionary
+predictions, `learned.sqlite` with the iOS-compatible ranking formula,
+bigram next-word, host-clear learning, real learned-word deletion.
+Stages 1–5 are owner-approved (Stages 1–4 device-tested on a Galaxy
+A52); Stage 6 is emulator-verified and awaits the owner's device
+pass. The decision log runs D-001…D-029; note especially D-025
+(pass-through overlay strip), D-026 (DPAD vertical cursor moves),
+D-027/D-029 (conditional globe opening the system picker), and D-028
+(Android-native dark surfaces).
 
 **Repository structure.**
 
@@ -166,13 +166,15 @@ of the implementation, not an afterthought.
 Stages are planned, tracked, and logged in
 `docs/IMPLEMENTATION_STAGES.md` — always read the current stage's
 entry there for deliverables, deferrals, and findings; this file does
-not duplicate it. Next up: **Stage 4, suggestion bar UI + animations**.
-Its geometry is already reserved (36 dp bar + 8 dp gap above the key
-rows, with the D-025 overlay strip above that), the palette and
-`overlayAt` overlay mechanics exist, and the exact animation
-parameters are specified in `ANDROID_PORT_CONTEXT.md` §6 and
-`docs/IOS_PARITY.md` — drive it with a fake candidate source; the real
-engine arrives in Stage 5.
+not duplicate it. Next up: **Stage 7, settings panel + themes**:
+`settings/KeyboardSettings` over SharedPreferences with the exact iOS
+keys (D-012), the gear-tap slide-up panel (pages and verbatim strings
+in the spec §10 and `docs/IOS_PARITY.md`), live toggle wiring (S14),
+the 1/3/5 visibility threshold, the 0.2/0.3/0.45 s callout delay,
+instant forced themes extending `KeyboardColors` (dark = D-028
+palette), and the saved-words page — which still needs
+`LearnedWords.topWords()` and `reset()` (deliberately not written
+until used).
 
 ## 6. Development principles
 
@@ -268,9 +270,8 @@ the hardware-keyboard setting (§2.2).
 
 - **Remote**: https://github.com/LekiTech/LezgiKeyboard-Android.git
 - **Branch**: `main`
-- **Milestone tags**: `stage-1`, `stage-2`, `stage-3` (annotated).
-- **Milestone**: Stages 1–3 of 8 complete and owner-verified on
-  device; Stage 4 (suggestion bar UI + animations) is next — its
-  deliverables are listed in `docs/IMPLEMENTATION_STAGES.md`, and the
-  bar geometry it builds on (36 dp + 8 dp gap) is already reserved in
-  `KeyboardView`.
+- **Milestone tags**: `stage-1`, `stage-2`, `stage-3` (annotated);
+  Stages 4–6 are closed through the stage log and pushed checkpoints.
+- **Milestone**: Stages 1–6 of 8 complete (1–5 owner-approved, 6
+  awaiting the owner's device pass); Stage 7 (settings panel +
+  themes) is next — see §5 and the stage log for its deliverables.
