@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- SF "text.book.closed" equivalent: closed book with text lines. -->
+    <path
+        android:pathData="M7.5,3.25 H17.75 A1.5,1.5 0 0 1 19.25,4.75 V19.25 A1.5,1.5 0 0 1 17.75,20.75 H7.5 A2.75,2.75 0 0 1 4.75,18 V6 A2.75,2.75 0 0 1 7.5,3.25 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M4.75,18 A2.75,2.75 0 0 1 7.5,15.25 H19.25"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5" />
+    <path
+        android:pathData="M8.6,7.4 H15.4 M8.6,10.4 H13.2"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round" />
+</vector>

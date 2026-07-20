@@ -9,4 +9,24 @@
     <string name="onboarding_open_settings">Открыть Настройки</string>
     <string name="onboarding_step_switch">Переключайтесь клавишей 🌐 или через выбор клавиатуры</string>
     <string name="onboarding_select_keyboard">Выбрать клавиатуру</string>
+
+    <string name="settings_suggestions">подсказки</string>
+    <string name="settings_word_suggestions">Подсказки слов</string>
+    <string name="settings_next_word">Подсказка следующего слова</string>
+    <string name="settings_auto_space">Пробел после выбора подсказки</string>
+    <string name="settings_double_space">Двойной пробел ставит точку</string>
+    <string name="settings_space_cursor">Управление курсором пробелом</string>
+    <string name="settings_space_label">Показывать «лезг» на пробеле</string>
+    <string name="settings_learning">обучение</string>
+    <string name="settings_after_1">после 1 использования</string>
+    <string name="settings_after_3">после 3 использований</string>
+    <string name="settings_after_5">после 5 использований</string>
+    <string name="settings_long_press">долгое нажатие</string>
+    <string name="settings_delay_short">короткая задержка</string>
+    <string name="settings_delay_normal">обычная задержка</string>
+    <string name="settings_delay_long">долгая задержка</string>
+    <string name="settings_theme">тема</string>
+    <string name="settings_theme_system">Как в системе</string>
+    <string name="settings_theme_light">Светлая тема</string>
+    <string name="settings_theme_dark">Тёмная тема</string>
 </resources>

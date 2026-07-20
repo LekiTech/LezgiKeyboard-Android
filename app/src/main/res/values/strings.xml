@@ -12,4 +12,28 @@
     <string name="onboarding_open_settings">Open Settings</string>
     <string name="onboarding_step_switch">Switch to it with the 🌐 key or the keyboard picker</string>
     <string name="onboarding_select_keyboard">Select keyboard</string>
+
+    <!-- Settings panel subtitles (Lezgi titles stay primary and are
+         never localized; these small explanations follow the user's
+         system language, en fallback — ported verbatim from the iOS
+         string catalog). -->
+    <string name="settings_suggestions">suggestions</string>
+    <string name="settings_word_suggestions">Word suggestions</string>
+    <string name="settings_next_word">Next-word suggestion</string>
+    <string name="settings_auto_space">Space after accepting a suggestion</string>
+    <string name="settings_double_space">Double space types a period</string>
+    <string name="settings_space_cursor">Cursor control with the space bar</string>
+    <string name="settings_space_label">Show «лезг» on the space bar</string>
+    <string name="settings_learning">learning</string>
+    <string name="settings_after_1">after 1 use</string>
+    <string name="settings_after_3">after 3 uses</string>
+    <string name="settings_after_5">after 5 uses</string>
+    <string name="settings_long_press">long press</string>
+    <string name="settings_delay_short">short delay</string>
+    <string name="settings_delay_normal">normal delay</string>
+    <string name="settings_delay_long">long delay</string>
+    <string name="settings_theme">theme</string>
+    <string name="settings_theme_system">Match the system</string>
+    <string name="settings_theme_light">Light theme</string>
+    <string name="settings_theme_dark">Dark theme</string>
 </resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- SF "slider.horizontal.3" equivalent: three sliders. -->
+    <path
+        android:pathData="M3.5,6.5 H12.1 M16.9,6.5 H20.5 M3.5,12 H6.1 M10.9,12 H20.5 M3.5,17.5 H13.6 M18.4,17.5 H20.5"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M16.7,6.5 A2.2,2.2 0 1 1 12.3,6.5 A2.2,2.2 0 1 1 16.7,6.5 Z M10.7,12 A2.2,2.2 0 1 1 6.3,12 A2.2,2.2 0 1 1 10.7,12 Z M18.2,17.5 A2.2,2.2 0 1 1 13.8,17.5 A2.2,2.2 0 1 1 18.2,17.5 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.6" />
+</vector>
