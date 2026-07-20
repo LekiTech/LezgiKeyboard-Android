@@ -114,9 +114,16 @@ private fun BoxScope.SpaceContent(flash: Boolean, colors: KeyboardColors) {
  * Character keys target the reference keyboard's look: between Regular
  * and Medium, slightly condensed, letters reading tall (spec §4 —
  * weight 0.19 on a 0.0→0.23 regular→medium scale, width −0.1). Matched
- * by eye against the iOS build; adjust these two constants only.
+ * by eye against the iOS build; adjust these constants only.
+ *
+ * Lowercase labels render 1.2× larger (the x-height bump), and larger
+ * glyphs at the same weight have proportionally thicker strokes. SF
+ * compensates automatically through optical sizing; Roboto has no
+ * optical axis, so the bumped lowercase takes a lighter weight to keep
+ * the perceived stroke weight equal across the case switch.
  */
-private val characterWeight = FontWeight(480)
+private val characterWeightUpper = FontWeight(480)
+private val characterWeightLower = FontWeight(430)
 private val characterSpacing = (-0.01).em
 
 @Composable
@@ -171,6 +178,8 @@ private fun KeyText(text: String, sizeDp: Float, color: Color, character: Boolea
     // geometry is a fixed contract and labels must never outgrow their
     // keys with the system font-size setting (DECISIONS.md D-020).
     val fontSize = with(LocalDensity.current) { Dp(sizeDp).toSp() }
+    val characterWeight =
+        if (text != text.uppercase()) characterWeightLower else characterWeightUpper
     BasicText(
         text = text,
         maxLines = 1,

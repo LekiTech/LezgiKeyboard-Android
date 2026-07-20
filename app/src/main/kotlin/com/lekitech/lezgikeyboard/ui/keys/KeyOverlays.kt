@@ -20,7 +20,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,18 @@ import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 
 /** Key frame in row coordinates (x, width of the key). */
 internal data class KeyFrame(val x: Dp, val width: Dp)
+
+/**
+ * Places an overlay at (x, y) in row coordinates, measured **without**
+ * the row's constraints: the 43 dp row would otherwise cap an
+ * overlay's height and crop bubbles and menus (Compose children may
+ * draw outside bounds but never measure beyond them). Reports zero
+ * size so the row layout is unaffected.
+ */
+internal fun Modifier.overlayAt(x: Dp, y: Dp): Modifier = layout { measurable, _ ->
+    val placeable = measurable.measure(Constraints())
+    layout(0, 0) { placeable.placeRelative(x.roundToPx(), y.roundToPx()) }
+}
 
 internal val CALLOUT_OPTION_WIDTH = 44.dp
 internal val BUBBLE_HEIGHT = 54.dp
@@ -59,7 +73,7 @@ internal fun KeyPreviewBubble(
     val fontSize = with(LocalDensity.current) { Dp(28f).toSp() }
     Box(
         modifier = Modifier
-            .offset(x = frame.x + frame.width / 2 - width / 2, y = keyHeight - totalHeight)
+            .overlayAt(x = frame.x + frame.width / 2 - width / 2, y = keyHeight - totalHeight)
             .size(width, totalHeight),
         contentAlignment = Alignment.TopCenter,
     ) {
@@ -122,13 +136,13 @@ internal fun CalloutBubble(
     // Key-width neck centered under the pressed key
     Box(
         modifier = Modifier
-            .offset(x = frame.x, y = bubbleTop + BUBBLE_HEIGHT)
+            .overlayAt(x = frame.x, y = bubbleTop + BUBBLE_HEIGHT)
             .size(frame.width, CALLOUT_TAIL)
             .drawBehind { drawRect(colors.letterKeyPressed) },
     )
     Row(
         modifier = Modifier
-            .offset(x = bubbleLeft, y = bubbleTop)
+            .overlayAt(x = bubbleLeft, y = bubbleTop)
             .height(BUBBLE_HEIGHT)
             .drawBehind {
                 drawRoundRect(
@@ -201,7 +215,7 @@ internal fun LayoutMenuBubble(
     val subtitleSize = with(LocalDensity.current) { Dp(11f).toSp() }
     Column(
         modifier = Modifier
-            .offset(x = left, y = -(MENU_GAP + MENU_ROW_HEIGHT * variants.size))
+            .overlayAt(x = left, y = -(MENU_GAP + MENU_ROW_HEIGHT * variants.size))
             .width(MENU_WIDTH)
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp))
             .drawBehind {
