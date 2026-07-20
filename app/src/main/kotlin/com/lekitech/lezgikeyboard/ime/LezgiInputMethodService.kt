@@ -15,10 +15,10 @@ import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
-import com.lekitech.lezgikeyboard.model.FakeSuggestionSource
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.model.TextEditor
+import com.lekitech.lezgikeyboard.store.WordSuggestions
 import com.lekitech.lezgikeyboard.ui.KeyboardView
 import kotlin.math.abs
 
@@ -33,9 +33,6 @@ class LezgiInputMethodService : InputMethodService() {
 
     private lateinit var imeLifecycleOwner: ImeLifecycleOwner
     private val model = KeyboardModel()
-
-    /** Stage 4 scaffolding; the real engine replaces it in Stage 5. */
-    private val fakeSuggestions = FakeSuggestionSource()
     private val handler = Handler(Looper.getMainLooper())
     private val hideKeyboardName = Runnable { model.showsKeyboardName = false }
 
@@ -50,6 +47,7 @@ class LezgiInputMethodService : InputMethodService() {
         model.layoutVariant = LayoutVariant.entries.firstOrNull {
             it.prefValue == preferences.getString(LAYOUT_VARIANT_KEY, null)
         } ?: LayoutVariant.CLASSIC
+        model.wordSuggestions = WordSuggestions.open(this)
     }
 
     private var inputView: View? = null
@@ -85,10 +83,9 @@ class LezgiInputMethodService : InputMethodService() {
                     preferences.edit().putString(LAYOUT_VARIANT_KEY, variant.prefValue).apply()
                 },
                 onSuggestion = ::acceptSuggestion,
-                onSuggestionDelete = { word ->
-                    fakeSuggestions.delete(word)
-                    refreshSuggestionBar()
-                },
+                // Learned-word deletion arrives with the store (Stage 6);
+                // no displayed suggestion is learned before then.
+                onSuggestionDelete = { },
             )
         }
         return view
@@ -99,13 +96,15 @@ class LezgiInputMethodService : InputMethodService() {
         model.returnAction = EditorState.returnAction(editorInfo)
         model.autocapMode = EditorState.autocapMode(editorInfo)
         model.needsGlobe = needsGlobeKey()
+        model.isPrivateField = EditorState.isPrivateField(editorInfo)
         model.updateShiftFromContext(textEditor)
         // Keyboard name flashed on the spacebar for 1.5 s per appearance
         model.showsKeyboardName = true
         handler.removeCallbacks(hideKeyboardName)
         handler.postDelayed(hideKeyboardName, 1500)
-        fakeSuggestions.reset()
-        refreshSuggestionBar()
+        model.syncComposedWord(textEditor)
+        model.refreshFallbackSuggestions(textEditor)
+        model.updateSuggestions(textEditor)
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -114,8 +113,10 @@ class LezgiInputMethodService : InputMethodService() {
         model.showsKeyboardName = false
     }
 
-    // The host-confirmed state change — the `textDidChange` analog. The
-    // full sync pipeline (composed word, suggestions) joins in Stage 5.
+    // The host-confirmed state change — the `textDidChange` analog.
+    // Pipeline order is parity-critical: resync the composed word,
+    // re-evaluate shift, refresh suggestions (host-clear learning
+    // slots in first in Stage 6).
     override fun onUpdateSelection(
         oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
         candidatesStart: Int, candidatesEnd: Int,
@@ -123,7 +124,9 @@ class LezgiInputMethodService : InputMethodService() {
         super.onUpdateSelection(
             oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd,
         )
+        model.syncComposedWord(textEditor)
         model.updateShiftFromContext(textEditor)
+        model.updateSuggestions(textEditor)
     }
 
     // Never use fullscreen extract mode: the platform default turns it on
@@ -156,6 +159,8 @@ class LezgiInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        model.wordSuggestions?.close()
+        model.wordSuggestions = null
         imeLifecycleOwner.onDestroy()
         super.onDestroy()
     }
@@ -174,31 +179,26 @@ class LezgiInputMethodService : InputMethodService() {
         if (cap == KeyCap.Backspace) {
             model.updateShiftFromContext(textEditor)
         }
-        fakeSuggestions.onKey(cap)
-        refreshSuggestionBar()
+        model.updateSuggestions(textEditor)
     }
 
     /**
-     * Accepting a suggestion replaces the typed prefix with the word
-     * plus a trailing space and refreshes the bar in the tap handler
-     * itself — hosts may not echo the keyboard's own edits promptly.
-     * The real replacement rule (max of context prefix and composed
-     * word) arrives with the engine in Stage 5.
+     * Accepting a suggestion replaces the active prefix with the word
+     * plus a trailing space. The prefix length comes from whichever
+     * source saw more — the host context or the locally composed word
+     * (the context lags behind fast typing) — and the bar refreshes in
+     * the tap handler itself: hosts may not echo the keyboard's own
+     * edits promptly, and the stale context cannot resurface the word
+     * because the prefix comes from the composed word, not the host.
      */
     private fun acceptSuggestion(word: String) {
-        repeat(fakeSuggestions.prefixLength()) { textEditor.deleteBackward() }
+        val prefixLength =
+            maxOf(model.wordPrefix(textEditor).length, model.composedWord.length)
+        repeat(prefixLength) { textEditor.deleteBackward() }
         textEditor.insertText("$word ")
-        fakeSuggestions.accept()
+        model.recordPickedSuggestion(word, insertedSpace = true)
         if (model.shiftState == ShiftState.ONCE) model.shiftState = ShiftState.OFF
-        refreshSuggestionBar()
-    }
-
-    private fun refreshSuggestionBar() {
-        val content = fakeSuggestions.content()
-        model.suggestions = content.suggestions
-        model.unrecognizedTyped = content.literal
-        model.learnedDisplayWords = content.learned
-        model.fallbackSuggestions = content.fallback
+        model.updateSuggestions(textEditor)
     }
 
     // MARK: - Input-method switching (globe key, D-027)

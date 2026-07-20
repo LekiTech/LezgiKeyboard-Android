@@ -11,6 +11,26 @@ import com.lekitech.lezgikeyboard.model.AutocapMode
  */
 object EditorState {
 
+    /**
+     * Password and no-personalized-learning fields (D-015): the bar
+     * shows nothing and nothing is ever learned there.
+     */
+    fun isPrivateField(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        if (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0) return true
+        val inputType = info.inputType
+        val variation = inputType and InputType.TYPE_MASK_VARIATION
+        return when (inputType and InputType.TYPE_MASK_CLASS) {
+            InputType.TYPE_CLASS_TEXT ->
+                variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                    variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                    variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            InputType.TYPE_CLASS_NUMBER ->
+                variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            else -> false
+        }
+    }
+
     /** The field's autocapitalization request (text classes only). */
     fun autocapMode(info: EditorInfo?): AutocapMode {
         val inputType = info?.inputType ?: return AutocapMode.NONE
