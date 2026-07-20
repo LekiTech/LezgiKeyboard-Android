@@ -45,6 +45,20 @@ class LezgiInputMethodService : InputMethodService() {
     override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(editorInfo, restarting)
         model.returnAction = EditorState.returnAction(editorInfo)
+        model.autocapMode = EditorState.autocapMode(editorInfo)
+        model.updateShiftFromContext(textEditor)
+    }
+
+    // The host-confirmed state change — the `textDidChange` analog. The
+    // full sync pipeline (composed word, suggestions) joins in Stage 5.
+    override fun onUpdateSelection(
+        oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int,
+    ) {
+        super.onUpdateSelection(
+            oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd,
+        )
+        model.updateShiftFromContext(textEditor)
     }
 
     // Never use fullscreen extract mode: the platform default turns it on
@@ -60,6 +74,10 @@ class LezgiInputMethodService : InputMethodService() {
 
     private fun handleKey(cap: KeyCap) {
         model.handleKey(cap, textEditor)
+        // Deleting can cross a sentence boundary; the shift state follows
+        if (cap == KeyCap.Backspace) {
+            model.updateShiftFromContext(textEditor)
+        }
     }
 
     private val textEditor = object : TextEditor {
@@ -86,6 +104,9 @@ class LezgiInputMethodService : InputMethodService() {
             ) 2 else 1
             ic.deleteSurroundingText(step, 0)
         }
+
+        override fun textBeforeCursor(maxLength: Int): CharSequence? =
+            currentInputConnection?.getTextBeforeCursor(maxLength, 0)
 
         override fun performReturn() {
             val ic = currentInputConnection ?: return

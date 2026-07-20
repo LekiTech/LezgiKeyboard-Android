@@ -1,14 +1,29 @@
 package com.lekitech.lezgikeyboard.ime
 
+import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.AutocapMode
 
 /**
- * Pure mapping of host `EditorInfo` to keyboard concepts. Stage 2
- * parses the return-key action; the autocapitalization mode and
- * password flag join in the stages that consume them (3 and 5).
+ * Pure mapping of host `EditorInfo` to keyboard concepts. The password
+ * flag joins in Stage 5 with the suggestion pipeline.
  */
 object EditorState {
+
+    /** The field's autocapitalization request (text classes only). */
+    fun autocapMode(info: EditorInfo?): AutocapMode {
+        val inputType = info?.inputType ?: return AutocapMode.NONE
+        if (inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) {
+            return AutocapMode.NONE
+        }
+        return when {
+            inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS != 0 -> AutocapMode.CHARACTERS
+            inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS != 0 -> AutocapMode.WORDS
+            inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0 -> AutocapMode.SENTENCES
+            else -> AutocapMode.NONE
+        }
+    }
 
     /**
      * The field's return-key action. `IME_FLAG_NO_ENTER_ACTION` (set by

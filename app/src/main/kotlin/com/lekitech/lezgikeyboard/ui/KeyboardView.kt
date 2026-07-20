@@ -57,6 +57,7 @@ fun KeyboardView(model: KeyboardModel, onKey: (KeyCap) -> Unit) {
                         rowIndex = index,
                         totalRows = rows.size,
                         returnAction = model.returnAction,
+                        shiftState = model.shiftState,
                         colors = colors,
                         onKey = onKey,
                     )

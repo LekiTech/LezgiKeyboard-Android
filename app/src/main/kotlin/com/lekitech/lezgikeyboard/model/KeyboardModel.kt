@@ -17,10 +17,22 @@ import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
  * with Stages 3–6. Rendering never makes decisions; it observes this
  * model and reports gestures.
  */
+enum class ShiftState { OFF, ONCE, CAPS_LOCK }
+
+/** The field's autocapitalization request, mapped by `EditorState`. */
+enum class AutocapMode { NONE, SENTENCES, WORDS, CHARACTERS }
+
 class KeyboardModel {
 
     var page by mutableStateOf(KeyboardPage.LETTERS)
     var returnAction by mutableStateOf(ReturnKeyAction.NONE)
+
+    /** Tap cycles off → once → capsLock → off; "once" consumes itself. */
+    var shiftState by mutableStateOf(ShiftState.ONCE)
+    var autocapMode = AutocapMode.SENTENCES
+
+    val isShifted: Boolean get() = shiftState != ShiftState.OFF
+    val isCapsLock: Boolean get() = shiftState == ShiftState.CAPS_LOCK
 
     /** User-selectable from Stage 3 (gear menu) / Stage 7 (panel). */
     val layoutVariant = LayoutVariant.CLASSIC
@@ -60,28 +72,89 @@ class KeyboardModel {
     fun handleKey(cap: KeyCap, editor: TextEditor) {
         when (cap) {
             is KeyCap.Character -> {
-                editor.insertText(cap.text)
+                val text =
+                    if (isShifted) LezgiLayout.applyCase(cap.text, isCapsLock) else cap.text
+                editor.insertText(text)
+                if (shiftState == ShiftState.ONCE) shiftState = ShiftState.OFF
                 // Punctuation on the numbers/symbols pages returns to the
-                // letters page, like the native keyboard (sentence-ending
-                // marks additionally arm Shift — Stage 3)
+                // letters page, like the native keyboard; sentence-ending
+                // marks capitalize the next letter
                 if ((page == KeyboardPage.NUMBERS || page == KeyboardPage.SYMBOLS)
                     && cap.text in returnsToLetters
                 ) {
                     page = KeyboardPage.LETTERS
+                    if (cap.text in sentenceEnders && shiftState != ShiftState.CAPS_LOCK) {
+                        shiftState = ShiftState.ONCE
+                    }
                 }
             }
 
             KeyCap.Space -> editor.insertText(" ")
-            KeyCap.Return -> editor.performReturn()
+
+            KeyCap.Return -> {
+                editor.performReturn()
+                // A new paragraph starts a new sentence, like the native
+                // keyboard; the same side effect runs for action fields
+                // (D-016) — the field decides what return did
+                if (shiftState != ShiftState.CAPS_LOCK && autocapMode != AutocapMode.NONE) {
+                    shiftState = ShiftState.ONCE
+                }
+            }
+
             KeyCap.Backspace -> editor.deleteBackward()
+
+            KeyCap.Shift -> shiftState = when (shiftState) {
+                ShiftState.OFF -> ShiftState.ONCE
+                ShiftState.ONCE -> ShiftState.CAPS_LOCK
+                ShiftState.CAPS_LOCK -> ShiftState.OFF
+            }
 
             KeyCap.Numbers -> page = KeyboardPage.NUMBERS
             KeyCap.Symbols -> page = KeyboardPage.SYMBOLS
             KeyCap.Letters -> page = KeyboardPage.LETTERS
 
-            // Shift arrives with Stage 3, the emoji page with Stage 8,
-            // the settings panel with Stage 7.
-            KeyCap.Shift, KeyCap.Emoji, KeyCap.Settings -> Unit
+            // The emoji page arrives with Stage 8, the settings panel
+            // with Stage 7.
+            KeyCap.Emoji, KeyCap.Settings -> Unit
         }
     }
+
+    // MARK: - Auto-capitalization
+
+    /**
+     * Re-evaluates the shift state from the field's autocapitalization
+     * request and the text before the cursor. Called on every host text
+     * or cursor change and after backspace; Caps Lock always wins over
+     * the automatic rules.
+     */
+    fun updateShiftFromContext(editor: TextEditor) {
+        if (shiftState == ShiftState.CAPS_LOCK) return
+        val shouldShift = when (autocapMode) {
+            AutocapMode.NONE -> false
+            AutocapMode.CHARACTERS -> true
+            AutocapMode.WORDS -> {
+                val before = editor.textBeforeCursor(1)
+                before.isNullOrEmpty() || before.last().isWhitespace()
+            }
+            AutocapMode.SENTENCES -> isCursorAtSentenceStart(editor)
+        }
+        shiftState = if (shouldShift) ShiftState.ONCE else ShiftState.OFF
+    }
+
+    /**
+     * Sentence start: empty or whitespace-only context, a fresh new
+     * line, or a sentence delimiter as the last non-whitespace
+     * character. A trailing space is not required, matching the native
+     * period behavior.
+     */
+    private fun isCursorAtSentenceStart(editor: TextEditor): Boolean {
+        val before = editor.textBeforeCursor(48)
+        if (before.isNullOrEmpty()) return true
+        if (before.last() == '\n') return true
+        val trimmed = before.trimEnd()
+        if (trimmed.isEmpty()) return true
+        return trimmed.last() in ".!?"
+    }
+
+    private val sentenceEnders = setOf(".", "?", "!")
 }

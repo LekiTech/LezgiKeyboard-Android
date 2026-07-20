@@ -12,6 +12,14 @@ interface TextEditor {
     fun deleteBackward()
 
     /**
+     * Text before the cursor, up to `maxLength` characters — the analog
+     * of the iOS document context, with the same caveat: it can lag
+     * behind fast typing and is only a resync source, never the truth
+     * for the active composition.
+     */
+    fun textBeforeCursor(maxLength: Int): CharSequence?
+
+    /**
      * The return key: performs the field's editor action, or inserts a
      * newline when the field has none (DECISIONS.md D-016).
      */

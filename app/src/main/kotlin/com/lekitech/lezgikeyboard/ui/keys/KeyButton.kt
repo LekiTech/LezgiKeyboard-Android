@@ -24,6 +24,7 @@ import com.lekitech.lezgikeyboard.R
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 
 /**
@@ -37,6 +38,7 @@ import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 fun KeyButton(
     cap: KeyCap,
     returnAction: ReturnKeyAction,
+    shiftState: ShiftState,
     isPressed: Boolean,
     colors: KeyboardColors,
     modifier: Modifier = Modifier,
@@ -54,7 +56,7 @@ fun KeyButton(
         },
         contentAlignment = Alignment.Center,
     ) {
-        KeyLabel(cap, returnAction, colors)
+        KeyLabel(cap, returnAction, shiftState, colors)
     }
 }
 
@@ -68,10 +70,23 @@ private val characterWeight = FontWeight(480)
 private val characterSpacing = (-0.01).em
 
 @Composable
-private fun KeyLabel(cap: KeyCap, returnAction: ReturnKeyAction, colors: KeyboardColors) {
+private fun KeyLabel(
+    cap: KeyCap,
+    returnAction: ReturnKeyAction,
+    shiftState: ShiftState,
+    colors: KeyboardColors,
+) {
     when (cap) {
         KeyCap.Backspace -> KeyIcon(R.drawable.ic_key_backspace, 22.dp, colors)
-        KeyCap.Shift -> KeyIcon(R.drawable.ic_key_shift, 22.dp, colors)
+        KeyCap.Shift -> KeyIcon(
+            resId = when (shiftState) {
+                ShiftState.OFF -> R.drawable.ic_key_shift
+                ShiftState.ONCE -> R.drawable.ic_key_shift_on
+                ShiftState.CAPS_LOCK -> R.drawable.ic_key_capslock
+            },
+            size = 22.dp,
+            colors = colors,
+        )
         KeyCap.Settings -> KeyIcon(R.drawable.ic_key_settings, 24.dp, colors)
         KeyCap.Emoji -> KeyIcon(R.drawable.ic_key_emoji, 24.dp, colors)
 
@@ -90,7 +105,7 @@ private fun KeyLabel(cap: KeyCap, returnAction: ReturnKeyAction, colors: Keyboar
         }
 
         else -> {
-            val label = LezgiLayout.label(cap, shifted = false)
+            val label = LezgiLayout.label(cap, shifted = shiftState != ShiftState.OFF)
             KeyText(
                 text = label,
                 sizeDp = LezgiLayout.fontSize(cap, label),

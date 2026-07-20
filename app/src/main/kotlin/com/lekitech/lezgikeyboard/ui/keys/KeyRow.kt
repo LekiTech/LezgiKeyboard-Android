@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
+import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
 import kotlin.math.abs
 
@@ -40,6 +41,7 @@ fun KeyRow(
     rowIndex: Int,
     totalRows: Int,
     returnAction: ReturnKeyAction,
+    shiftState: ShiftState,
     colors: KeyboardColors,
     onKey: (KeyCap) -> Unit,
 ) {
@@ -69,6 +71,7 @@ fun KeyRow(
             KeyButton(
                 cap = cap,
                 returnAction = returnAction,
+                shiftState = shiftState,
                 isPressed = pressedIndex == index,
                 colors = colors,
                 modifier = Modifier
