@@ -274,6 +274,7 @@ fun KeyRow(
                     selectedIndex = calloutSelected,
                     frame = frames[index],
                     rowWidth = rowWidth,
+                    rowTopInKeyboard = rowTopInKeyboard(rowIndex),
                     shiftState = shiftState,
                     colors = colors,
                 )

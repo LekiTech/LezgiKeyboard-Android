@@ -125,13 +125,17 @@ internal fun CalloutBubble(
     selectedIndex: Int,
     frame: KeyFrame,
     rowWidth: Dp,
+    rowTopInKeyboard: Dp,
     shiftState: ShiftState,
     colors: KeyboardColors,
 ) {
     val totalWidth = CALLOUT_OPTION_WIDTH * options.size
     val bubbleLeft = calloutLeft(frame, totalWidth, rowWidth)
     val fontSize = with(LocalDensity.current) { Dp(24f).toSp() }
-    val bubbleTop = -(BUBBLE_HEIGHT + CALLOUT_TAIL) + 9.dp
+    // Clamped to the keyboard top: the IME window cannot draw above
+    // itself, so top-row callouts slide down over the pressed key
+    // instead of clipping — the reference keyboard clamps the same way.
+    val bubbleTop = maxOf(-(BUBBLE_HEIGHT + CALLOUT_TAIL) + 9.dp, -rowTopInKeyboard)
 
     // Key-width neck centered under the pressed key
     Box(
