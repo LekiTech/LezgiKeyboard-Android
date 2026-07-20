@@ -13,16 +13,22 @@ import androidx.compose.ui.graphics.Color
 class KeyboardColors private constructor(
     val keyboardBackground: Color,
     val letterKey: Color,
+    val letterKeyPressed: Color,
+    val label: Color,
 ) {
     companion object {
         private val light = KeyboardColors(
             keyboardBackground = Color(red = 0.820f, green = 0.827f, blue = 0.851f),
             letterKey = Color.White,
+            letterKeyPressed = Color(red = 0.82f, green = 0.84f, blue = 0.87f),
+            label = Color.Black,
         )
 
         private val dark = KeyboardColors(
             keyboardBackground = Color(red = 0.169f, green = 0.169f, blue = 0.169f),
             letterKey = Color(red = 0.227f, green = 0.227f, blue = 0.235f),
+            letterKeyPressed = Color(red = 0.36f, green = 0.36f, blue = 0.37f),
+            label = Color.White,
         )
 
         fun resolve(isDark: Boolean): KeyboardColors = if (isDark) dark else light
