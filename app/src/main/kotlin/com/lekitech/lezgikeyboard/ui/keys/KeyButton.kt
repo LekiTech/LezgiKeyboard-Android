@@ -1,12 +1,18 @@
 package com.lekitech.lezgikeyboard.ui.keys
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -43,10 +49,14 @@ fun KeyButton(
     colors: KeyboardColors,
     modifier: Modifier = Modifier,
     hideLabel: Boolean = false,
+    spaceFlash: Boolean = false,
 ) {
     // While a character key shows its preview bubble, the key's own
-    // label hides underneath it, like the native keyboard.
-    val background = if (isPressed && !hideLabel) colors.letterKeyPressed else colors.letterKey
+    // label hides underneath it, like the native keyboard. The space
+    // bar is highlighted while it shows the keyboard name.
+    val background = if ((isPressed && !hideLabel) || (cap == KeyCap.Space && spaceFlash)) {
+        colors.letterKeyPressed
+    } else colors.letterKey
     Box(
         modifier = modifier.drawBehind {
             val radius = CornerRadius(8.dp.toPx())
@@ -60,8 +70,43 @@ fun KeyButton(
         contentAlignment = Alignment.Center,
     ) {
         if (!hideLabel) {
-            KeyLabel(cap, returnAction, shiftState, colors)
+            if (cap == KeyCap.Space) {
+                SpaceContent(spaceFlash, colors)
+            } else {
+                KeyLabel(cap, returnAction, shiftState, colors)
+            }
         }
+    }
+}
+
+/**
+ * Space-bar dressing: the «ЛЕЗГ» corner hint (hidden while the name
+ * shows; a setting hides it permanently from Stage 7) and the keyboard
+ * name «Лезги чӏал» flashed centered after appearance, fading 0.25 s.
+ */
+@Composable
+private fun BoxScope.SpaceContent(flash: Boolean, colors: KeyboardColors) {
+    val flashAlpha by animateFloatAsState(
+        targetValue = if (flash) 1f else 0f,
+        animationSpec = tween(durationMillis = 250),
+        label = "spaceFlash",
+    )
+    val hintSize = with(LocalDensity.current) { Dp(10f).toSp() }
+    val nameSize = with(LocalDensity.current) { Dp(16f).toSp() }
+    BasicText(
+        text = "ЛЕЗГ",
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 6.dp, bottom = 4.dp)
+            .alpha(1f - flashAlpha),
+        style = TextStyle(color = colors.spaceHint, fontSize = hintSize),
+    )
+    if (flashAlpha > 0.01f) {
+        BasicText(
+            text = "Лезги чӏал",
+            modifier = Modifier.align(Alignment.Center).alpha(flashAlpha),
+            style = TextStyle(color = colors.label, fontSize = nameSize),
+        )
     }
 }
 
@@ -95,7 +140,6 @@ private fun KeyLabel(
         KeyCap.Settings -> KeyIcon(R.drawable.ic_key_settings, 24.dp, colors)
         KeyCap.Emoji -> KeyIcon(R.drawable.ic_key_emoji, 24.dp, colors)
 
-        KeyCap.Space -> Unit  // «ЛЕЗГ» corner label and the name flash arrive with Stage 3
 
         KeyCap.Return -> when {
             returnAction == ReturnKeyAction.SEARCH ->

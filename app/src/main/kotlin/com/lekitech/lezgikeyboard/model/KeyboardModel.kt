@@ -37,10 +37,17 @@ class KeyboardModel {
     /** Space long-press trackpad mode; key labels hide while active. */
     var isSpaceCursorMode by mutableStateOf(false)
 
+    /** Keyboard name flashed on the spacebar right after appearance. */
+    var showsKeyboardName by mutableStateOf(false)
+
     private var lastSpaceTapNanos: Long? = null
 
-    /** User-selectable from Stage 3 (gear menu) / Stage 7 (panel). */
-    val layoutVariant = LayoutVariant.CLASSIC
+    /**
+     * Where «ъ» lives; set from the gear menu (and the panel in
+     * Stage 7). The service persists changes — the model stays
+     * storage-free.
+     */
+    var layoutVariant by mutableStateOf(LayoutVariant.CLASSIC)
 
     /** Punctuation that returns from the numbers/symbols pages to letters. */
     private val returnsToLetters = setOf(".", ",", "?", "!", "'")
@@ -75,6 +82,9 @@ class KeyboardModel {
     }
 
     fun handleKey(cap: KeyCap, editor: TextEditor) {
+        // First keystroke dismisses the keyboard name, like native
+        showsKeyboardName = false
+
         when (cap) {
             is KeyCap.Character -> {
                 val text =

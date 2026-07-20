@@ -23,6 +23,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lekitech.lezgikeyboard.layout.KeyCap
+import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
@@ -55,6 +56,7 @@ fun KeyRow(
     onKey: (KeyCap) -> Unit,
     onCursorMove: (Int) -> Unit,
     onCursorLineMove: (Int) -> Unit,
+    onLayoutVariant: (LayoutVariant) -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -81,6 +83,8 @@ fun KeyRow(
         var pressedIndex by remember { mutableStateOf<Int?>(null) }
         var calloutOptions by remember { mutableStateOf<List<String>?>(null) }
         var calloutSelected by remember { mutableIntStateOf(0) }
+        var menuVariants by remember { mutableStateOf<List<LayoutVariant>?>(null) }
+        var menuSelected by remember { mutableStateOf<Int?>(null) }
 
         row.forEachIndexed { index, cap ->
             KeyButton(
@@ -90,6 +94,7 @@ fun KeyRow(
                 isPressed = pressedIndex == index,
                 hideLabel = model.isSpaceCursorMode ||
                     (pressedIndex == index && calloutOptions == null && cap is KeyCap.Character),
+                spaceFlash = model.showsKeyboardName,
                 colors = colors,
                 modifier = Modifier
                     .offset(x = frames[index].x)
@@ -127,6 +132,7 @@ fun KeyRow(
                             alternates != null -> now() + CALLOUT_DELAY_MS
                             cap == KeyCap.Backspace -> now() + HOLD_DELAY_MS
                             cap == KeyCap.Space -> now() + HOLD_DELAY_MS
+                            cap == KeyCap.Settings -> now() + SETTINGS_HOLD_MS
                             else -> null
                         }
 
@@ -158,6 +164,15 @@ fun KeyRow(
                                         model.isSpaceCursorMode = true
                                         deadline = null
                                     }
+                                    cap == KeyCap.Settings -> {
+                                        // The current variant is always the top row;
+                                        // nothing starts highlighted, so releasing
+                                        // without entering the menu changes nothing
+                                        menuVariants = listOf(model.layoutVariant) +
+                                            LayoutVariant.entries.filter { it != model.layoutVariant }
+                                        menuSelected = null
+                                        deadline = null
+                                    }
                                     else -> deadline = null
                                 }
                                 continue
@@ -171,6 +186,21 @@ fun KeyRow(
 
                             val change = event.changes.first()
                             when {
+                                menuVariants != null && index != null -> {
+                                    // Track the row under the finger; outside the
+                                    // card (inset −8/−4) — none
+                                    val left = layoutMenuLeft(frames[index], rowWidth)
+                                    val top = -(MENU_GAP + MENU_ROW_HEIGHT * menuVariants!!.size)
+                                    val xDp = change.position.x.toDp()
+                                    val yDp = change.position.y.toDp() - topExpand
+                                    menuSelected = if (
+                                        xDp >= left - 8.dp && xDp <= left + MENU_WIDTH + 8.dp &&
+                                        yDp >= top - 4.dp && yDp <= top + MENU_ROW_HEIGHT * menuVariants!!.size + 4.dp
+                                    ) {
+                                        ((yDp - top) / MENU_ROW_HEIGHT).toInt()
+                                            .coerceIn(0, menuVariants!!.size - 1)
+                                    } else null
+                                }
                                 calloutOptions != null && index != null -> {
                                     val left = calloutLeft(
                                         frames[index],
@@ -207,16 +237,21 @@ fun KeyRow(
                         }
 
                         val options = calloutOptions
+                        val menu = menuVariants
+                        val menuChoice = menuSelected
                         pressedIndex = null
                         calloutOptions = null
+                        menuVariants = null
+                        menuSelected = null
                         if (cursorMode) {
                             // Cursor drag ends without inserting a space
                             model.isSpaceCursorMode = false
                         } else if (upReceived) {
-                            if (options != null) {
-                                onKey(KeyCap.Character(options[calloutSelected]))
-                            } else if (cap != null) {
-                                onKey(cap)
+                            when {
+                                menu != null -> menuChoice?.let { onLayoutVariant(menu[it]) }
+                                options != null ->
+                                    onKey(KeyCap.Character(options[calloutSelected]))
+                                cap != null -> onKey(cap)
                             }
                         }
                     }
@@ -243,9 +278,22 @@ fun KeyRow(
                     colors = colors,
                 )
             }
+            menuVariants?.let { variants ->
+                LayoutMenuBubble(
+                    variants = variants,
+                    highlightedIndex = menuSelected,
+                    currentVariant = model.layoutVariant,
+                    frame = frames[index],
+                    rowWidth = rowWidth,
+                    colors = colors,
+                )
+            }
         }
     }
 }
+
+/** Gear long-press delay — fixed, not the callout-delay setting. */
+private const val SETTINGS_HOLD_MS = 350L
 
 /** Callout hold delay; user-adjustable from Stage 7 (0.2/0.3/0.45 s). */
 private const val CALLOUT_DELAY_MS = 300L

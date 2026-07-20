@@ -1,11 +1,15 @@
 package com.lekitech.lezgikeyboard.ime
 
+import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import androidx.compose.ui.platform.ComposeView
 import com.lekitech.lezgikeyboard.layout.KeyCap
+import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.TextEditor
@@ -23,11 +27,20 @@ class LezgiInputMethodService : InputMethodService() {
 
     private lateinit var imeLifecycleOwner: ImeLifecycleOwner
     private val model = KeyboardModel()
+    private val handler = Handler(Looper.getMainLooper())
+    private val hideKeyboardName = Runnable { model.showsKeyboardName = false }
+
+    /** The default preferences file — iOS UserDefaults analog (D-012). */
+    private val preferences: SharedPreferences
+        get() = getSharedPreferences("${packageName}_preferences", MODE_PRIVATE)
 
     override fun onCreate() {
         super.onCreate()
         imeLifecycleOwner = ImeLifecycleOwner()
         imeLifecycleOwner.onCreate()
+        model.layoutVariant = LayoutVariant.entries.firstOrNull {
+            it.prefValue == preferences.getString(LAYOUT_VARIANT_KEY, null)
+        } ?: LayoutVariant.CLASSIC
     }
 
     override fun onCreateInputView(): View {
@@ -46,6 +59,10 @@ class LezgiInputMethodService : InputMethodService() {
                 onCursorLineMove = { lines ->
                     repeat(abs(lines)) { model.moveCursorLine(up = lines < 0, textEditor) }
                 },
+                onLayoutVariant = { variant ->
+                    model.layoutVariant = variant
+                    preferences.edit().putString(LAYOUT_VARIANT_KEY, variant.prefValue).apply()
+                },
             )
         }
         return view
@@ -56,6 +73,16 @@ class LezgiInputMethodService : InputMethodService() {
         model.returnAction = EditorState.returnAction(editorInfo)
         model.autocapMode = EditorState.autocapMode(editorInfo)
         model.updateShiftFromContext(textEditor)
+        // Keyboard name flashed on the spacebar for 1.5 s per appearance
+        model.showsKeyboardName = true
+        handler.removeCallbacks(hideKeyboardName)
+        handler.postDelayed(hideKeyboardName, 1500)
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        handler.removeCallbacks(hideKeyboardName)
+        model.showsKeyboardName = false
     }
 
     // The host-confirmed state change — the `textDidChange` analog. The
@@ -141,3 +168,6 @@ class LezgiInputMethodService : InputMethodService() {
     }
 
 }
+
+/** iOS-parity preference key (D-012). */
+private const val LAYOUT_VARIANT_KEY = "layoutVariant"

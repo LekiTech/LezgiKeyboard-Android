@@ -2,16 +2,19 @@ package com.lekitech.lezgikeyboard.ui.keys
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -21,6 +24,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.ui.theme.KeyboardColors
@@ -167,4 +171,75 @@ internal fun calloutLeft(frame: KeyFrame, totalWidth: Dp, rowWidth: Dp): Dp {
     val min = 0.dp
     val max = rowWidth - totalWidth
     return centered.coerceIn(minOf(min, max), maxOf(min, max))
+}
+
+internal val MENU_WIDTH = 196.dp
+internal val MENU_ROW_HEIGHT = 52.dp
+internal val MENU_GAP = 8.dp
+
+/** Menu card x in row coordinates (screen margins ≈ 4 dp = row −2 dp). */
+internal fun layoutMenuLeft(frame: KeyFrame, rowWidth: Dp): Dp =
+    frame.x.coerceIn((-2).dp, rowWidth - MENU_WIDTH + 2.dp)
+
+/**
+ * Quick layout switcher shown above the gear key on long press: two
+ * rows (the current variant always on top, marked by its accent-tinted
+ * title), the row under the finger highlighted. Releasing over a row
+ * applies it; releasing outside changes nothing. Render-only.
+ */
+@Composable
+internal fun LayoutMenuBubble(
+    variants: List<LayoutVariant>,
+    highlightedIndex: Int?,
+    currentVariant: LayoutVariant,
+    frame: KeyFrame,
+    rowWidth: Dp,
+    colors: KeyboardColors,
+) {
+    val left = layoutMenuLeft(frame, rowWidth)
+    val titleSize = with(LocalDensity.current) { Dp(15f).toSp() }
+    val subtitleSize = with(LocalDensity.current) { Dp(11f).toSp() }
+    Column(
+        modifier = Modifier
+            .offset(x = left, y = -(MENU_GAP + MENU_ROW_HEIGHT * variants.size))
+            .width(MENU_WIDTH)
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp))
+            .drawBehind {
+                drawRoundRect(colors.menuCard, cornerRadius = CornerRadius(12.dp.toPx()))
+            },
+    ) {
+        variants.forEachIndexed { index, variant ->
+            Box(
+                modifier = Modifier
+                    .size(MENU_WIDTH, MENU_ROW_HEIGHT)
+                    .drawBehind {
+                        if (highlightedIndex == index) {
+                            drawRoundRect(
+                                colors.menuAccentTint,
+                                cornerRadius = CornerRadius(12.dp.toPx()),
+                            )
+                        }
+                    },
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Column(
+                    modifier = Modifier.offset(x = 13.dp),
+                ) {
+                    BasicText(
+                        text = if (variant == LayoutVariant.CLASSIC)
+                            "Ъ — арадин къвалаг" else "Ъ — вини жергеда",
+                        style = TextStyle(
+                            color = if (variant == currentVariant) colors.menuAccent else colors.label,
+                            fontSize = titleSize,
+                        ),
+                    )
+                    BasicText(
+                        text = if (variant == LayoutVariant.CLASSIC)
+                            "Сад лагьай вариант" else "Кьвед лагьай вариант",
+                        style = TextStyle(color = colors.menuSecondary, fontSize = subtitleSize),
+                    )
+                }
+            }
+        }
+    }
 }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lekitech.lezgikeyboard.layout.KeyCap
+import com.lekitech.lezgikeyboard.layout.LayoutVariant
 import com.lekitech.lezgikeyboard.layout.LezgiLayout
 import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.ui.keys.KeyRow
@@ -31,6 +32,7 @@ fun KeyboardView(
     onKey: (KeyCap) -> Unit,
     onCursorMove: (Int) -> Unit,
     onCursorLineMove: (Int) -> Unit,
+    onLayoutVariant: (LayoutVariant) -> Unit,
 ) {
     val colors = KeyboardColors.resolve(isSystemInDarkTheme())
     Box(
@@ -66,6 +68,7 @@ fun KeyboardView(
                         onKey = onKey,
                         onCursorMove = onCursorMove,
                         onCursorLineMove = onCursorLineMove,
+                        onLayoutVariant = onLayoutVariant,
                     )
                 }
             }
