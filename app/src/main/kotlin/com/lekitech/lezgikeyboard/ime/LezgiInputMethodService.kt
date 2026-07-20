@@ -1,11 +1,8 @@
 package com.lekitech.lezgikeyboard.ime
 
-import android.content.Context
 import android.inputmethodservice.InputMethodService
-import android.os.Build
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.platform.ComposeView
 import com.lekitech.lezgikeyboard.layout.KeyCap
 import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
@@ -48,7 +45,6 @@ class LezgiInputMethodService : InputMethodService() {
     override fun onStartInputView(editorInfo: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(editorInfo, restarting)
         model.returnAction = EditorState.returnAction(editorInfo)
-        model.needsGlobe = offersInputMethodSwitch()
     }
 
     // Never use fullscreen extract mode: the platform default turns it on
@@ -63,10 +59,6 @@ class LezgiInputMethodService : InputMethodService() {
     }
 
     private fun handleKey(cap: KeyCap) {
-        if (cap == KeyCap.Globe) {
-            switchToNextKeyboard()
-            return
-        }
         model.handleKey(cap, textEditor)
     }
 
@@ -106,27 +98,4 @@ class LezgiInputMethodService : InputMethodService() {
         }
     }
 
-    // MARK: - Input-method switching (globe key)
-
-    private fun offersInputMethodSwitch(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return shouldOfferSwitchingToNextInputMethod()
-        }
-        val token = window?.window?.attributes?.token ?: return false
-        @Suppress("DEPRECATION")
-        return inputMethodManager.shouldOfferSwitchingToNextInputMethod(token)
-    }
-
-    private fun switchToNextKeyboard() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            switchToNextInputMethod(false)
-            return
-        }
-        val token = window?.window?.attributes?.token ?: return
-        @Suppress("DEPRECATION")
-        inputMethodManager.switchToNextInputMethod(token, false)
-    }
-
-    private val inputMethodManager: InputMethodManager
-        get() = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 }

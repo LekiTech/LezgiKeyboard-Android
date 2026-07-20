@@ -18,7 +18,6 @@ sealed interface KeyCap {
     data object Numbers : KeyCap   // switch to the «123» page
     data object Symbols : KeyCap   // switch to the «#+=» page
     data object Letters : KeyCap   // switch back to the alphabet
-    data object Globe : KeyCap     // input-method switch; shown only when the system requires it
     data object Emoji : KeyCap     // emoji page (Stage 8)
     data object Settings : KeyCap  // settings panel (Stage 7), quick layout menu (Stage 3)
     data object Space : KeyCap
@@ -141,7 +140,6 @@ object LezgiLayout {
         KeyCap.Numbers -> "123"
         KeyCap.Symbols -> "#+="
         KeyCap.Letters -> "АБВ"
-        KeyCap.Globe -> "🌐"
         KeyCap.Emoji -> "😀"
         KeyCap.Settings, KeyCap.Space, KeyCap.Return -> ""
     }
@@ -152,7 +150,7 @@ object LezgiLayout {
         is KeyCap.Character -> 1.0f
         KeyCap.Shift, KeyCap.Backspace -> 1.0f
         // The «123» / gear / emoji cluster must be exactly equal-sized
-        KeyCap.Settings, KeyCap.Globe, KeyCap.Emoji,
+        KeyCap.Settings, KeyCap.Emoji,
         KeyCap.Numbers, KeyCap.Symbols, KeyCap.Letters -> 1.2f
         KeyCap.Return -> 1.8f
         KeyCap.Space -> 4.5f

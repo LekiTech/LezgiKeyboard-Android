@@ -245,3 +245,21 @@ with the `NavigationBarFrame` at window coordinates 593–719 confirming
 the 48 dp band). Reserving the band restores reliable bottom-row input;
 the content contract stays 250 dp with the system band outside it,
 exactly like iOS above the home indicator.
+
+## D-022 (2026-07-19) — No in-keyboard globe key
+
+The keyboard carries no input-method switch key on any page. The
+`supportsSwitchingToNextInputMethod` declaration stays in `method.xml`
+so the system's own switcher works with this IME.
+
+*Why*: the spec (§2) shows the globe "only when the OS requires an
+input switcher". On iOS that requirement (`needsInputModeSwitchKey`) is
+false on modern devices because the system offers switching below the
+keyboard; on Android it is *never* a requirement —
+`shouldOfferSwitchingToNextInputMethod()` is advisory, and every
+supported Android version (26+) provides its own switcher affordance
+whenever several keyboards are enabled (the navigation-bar keyboard
+icon with 3-button navigation; the D-021 band's switcher button with
+gesture navigation). An in-keyboard globe would duplicate the system
+affordance and shrink the space bar. Owner-reviewed and confirmed
+after Stage 2.

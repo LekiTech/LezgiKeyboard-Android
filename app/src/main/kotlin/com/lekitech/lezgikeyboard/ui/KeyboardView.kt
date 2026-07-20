@@ -44,7 +44,7 @@ fun KeyboardView(model: KeyboardModel, onKey: (KeyCap) -> Unit) {
             Spacer(modifier = Modifier.height(LezgiLayout.SUGGESTION_BAR_HEIGHT.dp))
             Spacer(modifier = Modifier.height(LezgiLayout.BAR_GAP.dp))
 
-            val rows = model.rows(model.needsGlobe)
+            val rows = model.rows()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -20,7 +20,6 @@ import com.lekitech.lezgikeyboard.layout.ReturnKeyAction
 class KeyboardModel {
 
     var page by mutableStateOf(KeyboardPage.LETTERS)
-    var needsGlobe by mutableStateOf(false)
     var returnAction by mutableStateOf(ReturnKeyAction.NONE)
 
     /** User-selectable from Stage 3 (gear menu) / Stage 7 (panel). */
@@ -29,34 +28,32 @@ class KeyboardModel {
     /** Punctuation that returns from the numbers/symbols pages to letters. */
     private val returnsToLetters = setOf(".", ",", "?", "!", "'")
 
-    fun rows(needsGlobe: Boolean): List<List<KeyCap>> {
+    // Input-method switching is the system's job: Android always offers
+    // its own switcher when several keyboards are enabled (DECISIONS.md
+    // D-022), so no page carries a globe key.
+    fun rows(): List<List<KeyCap>> {
         val main = when (page) {
             KeyboardPage.LETTERS -> LezgiLayout.letterRows(layoutVariant)
             KeyboardPage.NUMBERS -> LezgiLayout.numberRows
             KeyboardPage.SYMBOLS -> LezgiLayout.symbolRows
             KeyboardPage.EMOJI -> return emptyList()
         }
-        return main + listOf(bottomRow(needsGlobe))
+        return main + listOf(bottomRow())
     }
 
-    private fun bottomRow(needsGlobe: Boolean): List<KeyCap> = when (page) {
+    private fun bottomRow(): List<KeyCap> = when (page) {
         KeyboardPage.LETTERS -> buildList {
             add(KeyCap.Numbers)
             add(KeyCap.Settings)
             add(KeyCap.Emoji)
-            if (needsGlobe) add(KeyCap.Globe)
             add(KeyCap.Space)
             // «ъ» sits next to the space bar in the classic variant and
             // moves to the top letter row in the topRow variant
             if (layoutVariant == LayoutVariant.CLASSIC) add(KeyCap.Character("ъ"))
             add(KeyCap.Return)
         }
-        KeyboardPage.NUMBERS, KeyboardPage.SYMBOLS -> buildList {
-            add(KeyCap.Letters)
-            if (needsGlobe) add(KeyCap.Globe)
-            add(KeyCap.Space)
-            add(KeyCap.Return)
-        }
+        KeyboardPage.NUMBERS, KeyboardPage.SYMBOLS ->
+            listOf(KeyCap.Letters, KeyCap.Space, KeyCap.Return)
         KeyboardPage.EMOJI -> emptyList()
     }
 
@@ -83,9 +80,8 @@ class KeyboardModel {
             KeyCap.Letters -> page = KeyboardPage.LETTERS
 
             // Shift arrives with Stage 3, the emoji page with Stage 8,
-            // the settings panel with Stage 7; the globe never reaches
-            // the model (the service switches input methods directly).
-            KeyCap.Shift, KeyCap.Emoji, KeyCap.Settings, KeyCap.Globe -> Unit
+            // the settings panel with Stage 7.
+            KeyCap.Shift, KeyCap.Emoji, KeyCap.Settings -> Unit
         }
     }
 }
