@@ -391,3 +391,64 @@ picker from their globe, making it the one switching hub that works
 everywhere. Direct cycling — the earlier D-027 action — strands users
 on keyboards with no way back. D-023 divergence: the Android
 convention beats the iOS mechanism on real devices.
+
+## D-030 (2026-07-19) — The settings panel shows the Android app's own version
+
+The home nav row and the about page display this build's
+`versionName` (read from `PackageManager` at runtime; 1.0.0 today),
+where iOS hardcodes its own 1.2.0. The two apps version
+independently — release history, not user-visible behavior — so
+copying the iOS number would mislabel the Android build, and a
+hardcoded string would go stale on every release. Everything around
+the number («Версия … · LekiTech», sizes, placement) stays verbatim.
+
+*Why*: the version string identifies the installed build for support;
+truthfulness beats string-level parity here, and reading it at
+runtime keeps it correct forever without a release-checklist step.
+
+## D-031 (2026-07-19) — Stickers live inside the keyboard via the Commit Content API
+
+The eagle sticker pack is bundled with the keyboard and inserted
+directly into the conversation from a sticker section on the emoji
+page (id −2, title «Стикерар», after the emoji categories, 2×84 dp
+cells). Insertion uses the platform Commit Content API:
+`InputConnection.commitContent` with an `InputContentInfo` whose URI
+is served by a scoped FileProvider over a cache copy of the asset,
+with a read grant — the standard image-keyboard path on Android (the
+one Gboard uses). The section and its category-bar icon appear only
+when the focused field declares a matching content mime type
+(`EditorInfo.contentMimeTypes`); the pack's native WebP is preferred
+and a PNG copy is converted on demand for editors that accept only
+PNG. The assets are the exact 512×512 WebP files the iOS app exports
+to WhatsApp/Telegram (`scripts/gen_messenger_stickers.py`), in the
+same canonical order — one identical pack on both platforms; the
+source PNGs stay canonical in the iOS repository and are not tracked
+here.
+
+*Why*: owner-directed Android-better divergence (D-023 spirit,
+requested explicitly). iOS keyboard extensions cannot insert images
+at all — the iOS app ships stickers as a share flow in the container
+app. Android's IME framework has a first-class API for exactly this,
+so the stickers become part of the typing experience instead of a
+separate app detour. Mime gating keeps the section honest: fields
+that cannot take an image never show it.
+
+## D-032 (2026-07-19) — Launcher icon derived from the flag artwork
+
+`AppIcon-1024.png` (repo root, also the Play listing source) is the
+owner-approved artwork: the white keyboard card over the Lezgi flag
+stripes. The Android launcher resources are derived from it rather
+than drawn separately: the adaptive-icon background layer is the
+stripes alone (the card-free left band of the artwork stretched
+across the canvas), the foreground layer is the extracted card scaled
+so its corners stay inside the 66 dp mask-safe zone, and the
+monochrome layer (Android 13+ themed icons) reuses the panel's
+keyboard glyph. Legacy raster mipmaps carry the full composite for
+completeness (unused at minSdk 26). Regeneration is scripted from the
+1024 source, so a future artwork change is one rerun.
+
+*Why*: the iOS icon is a full-bleed square; pasting it unchanged into
+an adaptive icon would clip the card's corners under circular masks.
+Splitting the artwork into its two natural layers keeps every mask
+shape showing the whole card over uninterrupted stripes — the same
+composition the artwork intends, expressed the Android way.

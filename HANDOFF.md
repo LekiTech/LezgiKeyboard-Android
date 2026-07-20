@@ -21,17 +21,26 @@ behavior.
 module, no DI framework, no INTERNET permission, `allowBackup=false`.
 minSdk 26, targetSdk 36.
 
-**Current status.** Stages 1–6 of 8 complete: fixed-height IME
-shell, three-page layout with typing, all key interactions, the
-animated suggestion bar, and the full intelligence — dictionary
-predictions, `learned.sqlite` with the iOS-compatible ranking formula,
-bigram next-word, host-clear learning, real learned-word deletion.
-Stages 1–5 are owner-approved (Stages 1–4 device-tested on a Galaxy
-A52); Stage 6 is emulator-verified and awaits the owner's device
-pass. The decision log runs D-001…D-029; note especially D-025
-(pass-through overlay strip), D-026 (DPAD vertical cursor moves),
-D-027/D-029 (conditional globe opening the system picker), and D-028
-(Android-native dark surfaces).
+**Current status.** All 8 stages complete: fixed-height IME shell,
+three-page layout with typing, all key interactions, the animated
+suggestion bar, the full intelligence — dictionary predictions,
+`learned.sqlite` with the iOS-compatible ranking formula, bigram
+next-word, host-clear learning, real learned-word deletion — the
+in-keyboard settings panel (iOS preference keys, live toggles with
+S14 master-switch semantics, instant forced themes, saved-words page
+with delete-all), the local quality metrics with the DEBUG startup
+log line, the emoji page (generated catalog identical to iOS,
+recents, category bar), the in-keyboard sticker pack inserted through
+the Commit Content API, and the launcher icon derived from the flag
+artwork. Stages 1–7 are owner-approved (Stages 1–4 device-tested on
+a Galaxy A52, 5–7 emulator-verified); Stage 8 is emulator-verified
+and awaits the owner's device pass. The decision log runs
+D-001…D-032; note especially D-025 (pass-through overlay strip),
+D-026 (DPAD vertical cursor moves), D-027/D-029 (conditional globe
+opening the system picker), D-028 (Android-native dark surfaces —
+also the forced dark theme), D-030 (the panel shows the Android
+build's own version), D-031 (in-keyboard stickers over Commit
+Content), and D-032 (the derived adaptive launcher icon).
 
 **Repository structure.**
 
@@ -45,6 +54,8 @@ docs/                        architecture plan, parity notes, decision
 app/src/main/
   AndroidManifest.xml        IME service + onboarding activity
   assets/lezgi_words.sqlite  bundled dictionary (20,356 words)
+  assets/stickers/           the eagle pack (20 WebP, identical to
+                             the iOS messenger export; D-031)
   res/xml/method.xml         IME declaration, subtype lez
   res/values[-ru]/           en/ru onboarding + subtitle strings
   kotlin/com/lekitech/lezgikeyboard/
@@ -54,8 +65,16 @@ app/src/main/
                              weights, labels, geometry constants)
     model/                   KeyboardModel, TextEditor (narrow editor
                              surface the service implements)
+    settings/                KeyboardSettings (iOS keys over
+                             SharedPreferences)
+    stickers/                StickerPack (canonical pack order)
+    store/                   WordSuggestions (bundled dictionary),
+                             LearnedWords (learned.sqlite + metrics)
     ui/                      KeyboardView, keys/ (KeyRow, KeyButton,
-                             overlays), theme/KeyboardColors
+                             overlays), suggestions/ (SuggestionBar,
+                             MorphingWordText), settings/
+                             (SettingsPanelView), emoji/ (EmojiPage),
+                             theme/KeyboardColors
     onboarding/              MainActivity (enable/switch shortcuts)
 gradle/, gradlew, *.kts      Gradle 8.14.3, AGP 8.10.1, Kotlin 2.1.21
 ```
@@ -113,13 +132,13 @@ keyboard background (D-017).
 
 | Component | Responsibility today | Grows into |
 |---|---|---|
-| `ime/LezgiInputMethodService` | Owns `InputConnection` (via the `TextEditor` implementation), the event pipeline seed (`onUpdateSelection` → shift re-evaluation), insets (D-021/D-025), variant persistence, name-flash timer | Full pipeline: composed word + suggestions (Stage 5), stores (Stages 5–6), metrics log (Stage 8) |
+| `ime/LezgiInputMethodService` | Owns `InputConnection` (via the `TextEditor` implementation), the full sync pipeline, insets (D-021/D-025), settings/variant/recents persistence, sticker insertion (D-031), the DEBUG metrics log | Cloud sync only (out of scope by design) |
 | `ime/ImeLifecycleOwner` | Lifecycle/saved-state glue Compose requires in a Service window | Unchanged |
 | `ime/EditorState` | Pure `EditorInfo` mapping: return action, autocap mode | Password flag (Stage 5) |
 | `layout/LezgiLayout` | The truth table: rows, callouts, weights, labels, case helpers, geometry constants | `baseScore`-ready dictionary ordering never touches it |
 | `model/KeyboardModel` | Pages, shift machine, autocap, key handling, double-space, cursor-mode state, variant, name flash | Composed word, suggestion pipeline, learn hooks, metrics (Stages 5–6) |
-| `ui/KeyboardView` + `ui/keys/*` | Key grid, gesture surfaces (deadline-based holds), bubbles/callouts/menu in the pass-through strip | Suggestion bar content + animations (Stage 4), settings panel (Stage 7), emoji page (Stage 8) |
-| `ui/theme/KeyboardColors` | Palette roles in use, resolved from `uiMode` | Forced themes (Stage 7) |
+| `ui/KeyboardView` + `ui/keys/*` + `ui/settings/*` + `ui/emoji/*` | Key grid, gesture surfaces (deadline-based holds), bubbles/callouts/menu in the pass-through strip, suggestion bar, settings panel, emoji page with the sticker section | Unchanged |
+| `ui/theme/KeyboardColors` | Palette roles in use, resolved from the theme setting (system / forced light / forced dark) | Unchanged |
 | `onboarding/MainActivity` | Enable/switch shortcuts (verified) | Unchanged |
 
 **Data flow today**: key touch → `KeyRow` gesture surface → service →
@@ -166,15 +185,12 @@ of the implementation, not an afterthought.
 Stages are planned, tracked, and logged in
 `docs/IMPLEMENTATION_STAGES.md` — always read the current stage's
 entry there for deliverables, deferrals, and findings; this file does
-not duplicate it. Next up: **Stage 7, settings panel + themes**:
-`settings/KeyboardSettings` over SharedPreferences with the exact iOS
-keys (D-012), the gear-tap slide-up panel (pages and verbatim strings
-in the spec §10 and `docs/IOS_PARITY.md`), live toggle wiring (S14),
-the 1/3/5 visibility threshold, the 0.2/0.3/0.45 s callout delay,
-instant forced themes extending `KeyboardColors` (dark = D-028
-palette), and the saved-words page — which still needs
-`LearnedWords.topWords()` and `reset()` (deliberately not written
-until used).
+not duplicate it. All 8 stages are implemented; open work is the
+owner's device pass for Stage 8 (see its checklist: metrics
+semantics, emoji page, sticker send in a real messenger, themed
+icon) and release preparation (version, store listing). Cloud sync
+remains out of scope by design — the learned store is already
+event-shaped for it.
 
 ## 6. Development principles
 
@@ -221,11 +237,8 @@ IMEs have tight budgets on Android too).
 
 ## 7. Known limitations
 
-- Placeholder keyboard UI only (by design — Stage 1 scope).
-- Launcher uses the default system icon (product icon deferred; noted
-  in the stage log).
-- `versionName` is 1.0.0; the iOS settings panel displays 1.2.0 — the
-  Android panel version string is a Stage 7 concern.
+- `versionName` is 1.0.0; the settings panel shows this build's own
+  version at runtime rather than the iOS 1.2.0 (D-030).
 - Gradle prints deprecation warnings from AGP/plugins (not from our
   scripts); harmless until a Gradle 9 upgrade.
 - No automated tests by deliberate policy — acceptance is S1–S17 on
@@ -272,6 +285,6 @@ the hardware-keyboard setting (§2.2).
 - **Branch**: `main`
 - **Milestone tags**: `stage-1`, `stage-2`, `stage-3` (annotated);
   Stages 4–6 are closed through the stage log and pushed checkpoints.
-- **Milestone**: Stages 1–6 of 8 complete (1–5 owner-approved, 6
-  awaiting the owner's device pass); Stage 7 (settings panel +
-  themes) is next — see §5 and the stage log for its deliverables.
+- **Milestone**: all 8 stages complete (1–7 owner-approved, 8
+  awaiting the owner's device pass) — see §5 and the stage log for
+  what remains.

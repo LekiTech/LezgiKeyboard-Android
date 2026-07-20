@@ -38,10 +38,13 @@ also enable «show on-screen keyboard while hardware keyboard is active»
 
 ## Status
 
-Stages 1–6 of 8 complete (see
+All 8 stages complete (see
 [docs/IMPLEMENTATION_STAGES.md](docs/IMPLEMENTATION_STAGES.md)): the
 fixed-height IME, the full three-page layout with typing and every key
-interaction, the animated suggestion bar, and the complete on-device
+interaction, the animated suggestion bar, the complete on-device
 intelligence — bundled-dictionary predictions, the personal learned
-store with iOS-compatible ranking, and bigram next-word suggestions.
-Stage 7 (in-keyboard settings panel + themes) is next.
+store with iOS-compatible ranking, and bigram next-word suggestions —
+the in-keyboard settings panel with live toggles, instant themes, and
+the saved-words dictionary, local quality metrics, the emoji page,
+and the eagle sticker pack inserted straight from the keyboard where
+the app accepts images.

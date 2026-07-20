@@ -384,7 +384,68 @@ ordering.
 
 ## Stage 7 — Settings panel + themes
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- `settings/KeyboardSettings` ports the iOS struct 1:1: a data class
+  with the exact preference keys **and** enum raw values
+  (`fast/normal/conservative`, `short/normal/long`,
+  `system/light/dark`) so a future cloud sync reads both platforms
+  uniformly (D-012). The model stays storage-free: the service loads
+  at `onCreate` and persists in `applySettings`; every change funnels
+  through `KeyboardModel.updateSettings`, which syncs
+  `LearnedWords.minVisibleUses` and clears the bar state when the
+  master switch goes off (iOS `updateSettings` verbatim).
+- Master-off (S14) clears `suggestions`/`learnedDisplayWords`/
+  `fallbackSuggestions` synchronously and both `updateSuggestions`
+  and `refreshFallbackSuggestions` guard on the setting, so the bar
+  is empty the moment the panel closes; learning paths are untouched.
+  Re-enabling shows content again from the next refresh (keystroke or
+  host change) — exactly the iOS timing.
+- The panel is a Compose-foundation port of `SettingsPanelView`:
+  page-stack state, 40 dp header (Клавиатура/Кьулухъ back), 36×5
+  capsule, radius-14 row cards, verbatim Lezgi strings, 19 ru/en
+  subtitle strings ported from the iOS catalog into
+  `res/values[-ru]`. It slides over the whole fixed keyboard with
+  easeOut 0.28 (graphicsLayer translation) and leaves composition
+  only when fully hidden — every reopen is therefore a fresh panel
+  (home page, saved words re-fetched), the exact iOS lifecycle.
+- Compose pitfalls worth remembering: a plain background is not
+  hit-testable, so the panel root needs a catch-all `pointerInput`
+  or touches fall through to the key surfaces underneath; and row
+  tap handlers capture `settings` copies, so `tappable()` routes
+  through `rememberUpdatedState` — a stale closure would re-apply an
+  old settings snapshot.
+- Theme forcing lives at the root: `KeyboardView` derives the
+  effective appearance from `settings.theme` and resolves
+  `KeyboardColors` from it, so a radio tap recolors keyboard and
+  panel in the same frame with the panel open. Forced dark is the
+  D-028 Android-native palette; the background is always painted
+  (D-017), covering the forced case by construction. Panel palette
+  roles (`panelBackground`, `panelSeparator`, `labelTertiary`) joined
+  `KeyboardColors`; accent/tint/card/secondary reuse the existing
+  menu roles (same values by design).
+- The panel shows the Android app's own `versionName` (currently
+  1.0.0), not the iOS 1.2.0 — D-030.
+- SF-symbol icons (keyboard, sliders, half-circle, book, info,
+  chevrons, xmark, checkmark) are drawn as vector line art
+  (`ic_panel_*`), matching the existing key-icon style.
+- One shared scroll container backs all pages, so the scroll offset
+  persists across page navigation — the same behavior as the iOS
+  panel's single ScrollView.
+- Emulator-verified (Pixel API level image, `emulator-5554`): gear
+  tap opens the panel over bar + keys; home rows show live values
+  (variant, theme, saved-count, version); master off ⇒ bar fully
+  empty both idle and while composing «Кен», back on ⇒ candidates
+  return on the next keystroke (S14); Мичӏи recolored panel +
+  keyboard + background instantly with the panel open, Системадин
+  restored light the same way (S16); a non-dictionary «зузуз» typed
+  three times appeared in Гафарган with counter 1 derived from the
+  list, and the delete-all sheet reset to «Гьеле гафар авач» /
+  counter 0 (S10); the preferences XML holds exactly the iOS keys
+  and raw values; crash buffer clean. Timing-sensitive toggles
+  (callout delay, space-cursor off, «ЛЕЗГ» off, auto-space off,
+  double-space off) are wired but need the owner's device pass.
 
 **Objective**: full in-keyboard settings with live effect.
 
@@ -395,14 +456,18 @@ palette and strings, ru/en subtitles; all toggles wired live (S14
 semantics); learning-speed and callout-delay application; theme
 system/light/dark applied instantly with background painting; layout
 variant unified with the quick menu; saved-words page with derived
-counter, per-row delete, delete-all sheet.
+counter, per-row delete, delete-all sheet
+(`LearnedWords.topWords`/`reset`).
 
 **Intentionally deferred**: metrics, emoji page.
 
 **Device test checklist**: S10 (saved words = user vocabulary only,
-counter equality), S14 (master off ⇒ empty bar, learning continues),
+counter equality, per-row × delete), S14 (master off ⇒ empty bar,
+learning continues — verify via Гафарган counter growth while off),
 S16 (instant theme, both directions, system restore); every toggle's
-live effect; variant switch from both entry points.
+live effect (callout delay 0.2/0.45, space-cursor off, «ЛЕЗГ» off,
+auto-space off, double-space off, learning speed 1/5); variant switch
+from both entry points.
 
 **Acceptance scenarios expected to pass**: S10, S14, S16 — full suite
 S1–S17 now green except emoji-related checks (none exist in S1–S17).
@@ -411,7 +476,71 @@ S1–S17 now green except emoji-related checks (none exist in S1–S17).
 
 ## Stage 8 — Metrics, diagnostics + emoji page
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- The five `meta` counters port the iOS semantics exactly: the
+  `wordHadPredictions` flag (set only while composing, reset by the
+  empty-prefix branch and every completion hook), the
+  `pendingAcceptedWord` correction tracking (settled by
+  `syncComposedWord` when the cursor moves on, converted to
+  `m_corrected` by the backspace resume-into-word), literal-tap
+  exclusion in `recordPickedSuggestion`, and the manual-completion
+  hook in terminator/host-clear paths. `bumpMetric` is one upsert;
+  `reset()` never touches `m_*` keys, so the history survives a
+  learned wipe. The DEBUG-only startup line (`kb-metrics` logcat tag,
+  `BuildConfig.DEBUG`) prints the same summary format as iOS.
+- `EmojiData.kt` is generated mechanically from the iOS
+  `EmojiData.swift` and verified byte-identical (8 categories, 1898
+  emoji, Lezgi titles); regeneration happens alongside the iOS
+  catalog, never by hand. A load-time `Paint.hasGlyph` filter drops
+  emoji the device font lacks — Android emoji fonts trail Unicode
+  far more than iOS, and the filter is what keeps the grid tofu-free
+  on older devices (the filter list is per-process, computed once).
+- The emoji page keeps the iOS flat-lazy structure (one `LazyRow` of
+  small uniform 5-emoji columns — nested lazy grids defeat laziness
+  and blew the iOS extension's memory limit) with the exact geometry:
+  38×33 cells, 26 glyphs, spacing 2, 10 dp section gap, 13 semibold
+  title strip following the leading edge (derived from the first
+  visible column), 36 dp category bar with 44 dp «АБВ»/delete side
+  zones, 15 dp icons, 30 dp selection circle, zone-at-touch-down
+  dispatch, and the letters-page backspace repeat curve. Category
+  taps jump instantly (`scrollToItem`); the icons are drawn vectors
+  mapping the SF symbols. Recents: id −1, limit 24, move-to-front
+  dedup, persisted newline-joined under the iOS `recentEmojis` key
+  (an emoji sequence never contains a newline).
+- The sticker section (D-031) joins the page as id −2 «Стикерар»
+  after the categories: 2×84 dp cells decoding the bundled WebP at
+  quarter resolution only while visible. Both the section and its
+  bar icon exist only when `EditorInfo.contentMimeTypes` accepts
+  WebP or PNG, so plain text fields and password fields never see
+  it. Insertion commits an `InputContentInfo` over a FileProvider
+  cache copy with a read grant; PNG is transcoded on demand when
+  WebP is not accepted.
+- The launcher icon (D-032) derives from `AppIcon-1024.png`:
+  stripes-only background (card-free band stretched), card
+  foreground scaled into the mask-safe zone, keyboard-glyph
+  monochrome layer, legacy raster mipmaps, manifest icon refs.
+- Astral-character fixes surfaced by the emoji page (emoji are not
+  word separators, so a composed word can now contain one — same as
+  iOS): `MorphingWordText` renders grapheme clusters (ICU
+  `BreakIterator`) instead of UTF-16 units, which used to tear a
+  surrogate pair into two tofu boxes in the quoted literal; and
+  `LearnedWords.lezgiLetterCount` no longer counts low surrogates,
+  so a lone emoji stays unlearnable exactly like iOS's
+  grapheme-based count.
+- Emulator-verified (`emulator-5554`, screenshots): metrics baseline
+  line at startup; emoji page opens from the emoji key; grid
+  scrolls; section title follows; category-bar jump to «Стикерар»;
+  АБВ returns to letters; emoji insert lands in the field and
+  reorders recents live (persisted across reinstalls); «😀» renders
+  intact as the bar's quoted literal after the grapheme fix; sticker
+  tap committed the image end-to-end — Google Messages accepted the
+  commit and raised its own "attachments not supported in this
+  conversation" dialog, which is the emulator's missing MMS/RCS
+  transport, not the keyboard (the FileProvider cache copy was
+  created and served); adaptive icon live on the launcher under a
+  circular mask; crash buffer clean throughout.
 
 **Objective**: measurement infrastructure and the last page.
 
@@ -420,13 +549,18 @@ S1–S17 now green except emoji-related checks (none exist in S1–S17).
 word), surviving learned reset; DEBUG-only startup log line with
 acceptance rate; emoji page (flat lazy 5-emoji columns, sections +
 recents id −1 limit 24, category bar with АБВ/repeating backspace,
-press flash, hasGlyph filtering, recents persistence).
+press flash, hasGlyph filtering, recents persistence); sticker
+section + Commit Content insertion (D-031); launcher icon (D-032);
+grapheme-cluster fixes in the bar and the learnability filter.
 
 **Intentionally deferred**: nothing — Stage 8 cloud sync is out of
 scope by design (the store is already event-shaped for it).
 
 **Device test checklist**: metrics line in logcat after typing sessions
 (opportunities/accepted/ignored/corrected behave per definitions);
-emoji insert/recents/section jumps/backspace repeat; full S1–S17 pass.
+emoji insert/recents/section jumps/backspace repeat; sticker send in
+a real messenger (Messages with RCS/MMS, WhatsApp, Telegram) and the
+section's absence in plain text fields; themed icon on Android 13+;
+full S1–S17 pass.
 
 **Acceptance scenarios expected to pass**: S1–S17 verbatim.

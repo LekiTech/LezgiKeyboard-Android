@@ -8,3 +8,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Sticker source artwork lives in the iOS repository (LezgiStickers/,
+# the canonical pack); this repo tracks only the derived WebP assets
+# under app/src/main/assets/stickers/.
+/LezgiStickers/
