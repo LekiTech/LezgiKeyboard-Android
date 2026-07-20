@@ -162,7 +162,24 @@ globe appears only when the system requires it.
 
 ## Stage 3 — Key interactions
 
-**Status: planned**
+**Status: implemented 2026-07-19 — awaiting device verification**
+
+**Findings**
+- Hold gestures run on absolute deadlines inside the row's pointer
+  loop, so finger jitter never resets a timer (the naive
+  per-event-timeout approach would starve backspace repeat under real
+  touches).
+- Callout/menu insertion goes through the normal key path, so digraph
+  casing («Къ»/«КЪ») falls out of `applyCase` with no special cases.
+- The gear menu writes the `layoutVariant` preference through the
+  service; the model stays storage-free.
+- Emulator-verified: auto-cap armed «Аее», Caps Lock «АЕ»; long-press
+  «к» inserted «кь» with under-finger initial selection matching the
+  iOS math; backspace hold deleted ~14 chars with acceleration;
+  double space produced «И. » with re-armed shift; space-drag moved
+  the caret 9 characters across lines and inserted nothing; the
+  «Лезги чӏал» flash and «ЛЕЗГ» hint render; the gear menu switched
+  «ъ» to the top row live and back.
 
 **Objective**: the keyboard *feels* like the iOS one — every §5 gesture.
 
