@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Package visibility for the sticker export targets (D-033). -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <intent>
+            <action android:name="org.telegram.messenger.CREATE_STICKER_PACK" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -33,6 +42,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/sticker_paths" />
         </provider>
+
+        <!-- WhatsApp reads the exported sticker pack through this
+             provider (official third-party sticker contract, D-033);
+             access is limited to WhatsApp by its read permission. -->
+        <provider
+            android:name=".stickers.WhatsAppStickerProvider"
+            android:authorities="${applicationId}.stickercontentprovider"
+            android:enabled="true"
+            android:exported="true"
+            android:readPermission="com.whatsapp.sticker.READ" />
 
         <!-- Minimal onboarding: enable the keyboard and switch to it. -->
         <activity

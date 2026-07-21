@@ -34,6 +34,9 @@ filter) and Stage 8 cloud plans require byte-identical data.
 
 ## D-003 (2026-07-19) — Android scope is keyboard-only
 
+**Superseded by D-033** (owner-requested): the app page now mirrors
+the iOS container app, including sticker export.
+
 The Android project ports the keyboard extension only. The launcher
 activity provides the minimum onboarding to enable and switch to the
 keyboard. Sticker export and other iOS container-app features are out of
@@ -452,3 +455,39 @@ an adaptive icon would clip the card's corners under circular masks.
 Splitting the artwork into its two natural layers keeps every mask
 shape showing the whole card over uninterrupted stripes — the same
 composition the artwork intends, expressed the Android way.
+
+## D-033 (2026-07-20) — The app page mirrors the iOS container app
+
+Supersedes D-003's "keyboard-only" scope on the owner's explicit
+request: the launcher activity is now the Android counterpart of the
+iOS `ContentView` — header with the gradient keyboard tile, numbered
+install steps with the Open Settings / Select keyboard actions, the
+eagle-sticker card with the same five preview stickers and
+WhatsApp/Telegram export, the four feature cards (alphabet,
+suggestions, native feel, privacy — the privacy card states the
+Android guarantee: no Internet permission), and the LekiTech footer.
+Strings localize en/ru like the rest of the app surface.
+
+Sticker export uses each messenger's official path:
+
+- **WhatsApp** — the third-party sticker-pack contract: an exported
+  `WhatsAppStickerProvider` (read-restricted to WhatsApp's
+  `com.whatsapp.sticker.READ` permission) serves the pack metadata,
+  the emoji tags from the shared canonical mapping, and the images;
+  the page fires `com.whatsapp.intent.action.ENABLE_STICKER_PACK`.
+- **Telegram** — the official import intent
+  (`org.telegram.messenger.CREATE_STICKER_PACK`) with the images
+  granted through the keyboard's existing FileProvider and the same
+  emoji tags.
+
+Both buttons degrade to a plain toast when the messenger is not
+installed (a toast is fine in the app; the no-dialog rule binds the
+keyboard only). The cache copies in `StickerFiles` are shared by the
+keyboard's Commit Content path, the WhatsApp provider, and the
+Telegram export, so the pack exists exactly once.
+
+*Why*: the owner asked for parity with the iOS app page for the store
+release. The pack itself was already bundled for the in-keyboard
+sticker section (D-031), so the export costs only the two official
+integration contracts — and those are the paths WhatsApp and Telegram
+document and keep stable.

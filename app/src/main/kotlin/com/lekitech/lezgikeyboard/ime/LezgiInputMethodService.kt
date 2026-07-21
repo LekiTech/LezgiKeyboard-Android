@@ -27,6 +27,7 @@ import com.lekitech.lezgikeyboard.model.KeyboardModel
 import com.lekitech.lezgikeyboard.model.ShiftState
 import com.lekitech.lezgikeyboard.model.TextEditor
 import com.lekitech.lezgikeyboard.settings.KeyboardSettings
+import com.lekitech.lezgikeyboard.stickers.StickerFiles
 import com.lekitech.lezgikeyboard.stickers.StickerPack
 import com.lekitech.lezgikeyboard.store.LearnedWords
 import com.lekitech.lezgikeyboard.store.WordSuggestions
@@ -280,17 +281,10 @@ class LezgiInputMethodService : InputMethodService() {
 
     /** The shareable cache copy of a sticker, in a mime the editor takes. */
     private fun stickerFile(name: String, webpAccepted: Boolean): Pair<File, String>? = try {
-        val dir = File(cacheDir, "stickers").apply { mkdirs() }
         if (webpAccepted) {
-            val file = File(dir, "$name.webp")
-            if (!file.exists()) {
-                assets.open(StickerPack.assetPath(name)).use { input ->
-                    file.outputStream().use { input.copyTo(it) }
-                }
-            }
-            file to "image/webp"
+            StickerFiles.sticker(this, name)?.let { it to "image/webp" }
         } else {
-            val file = File(dir, "$name.png")
+            val file = File(StickerFiles.directory(this), "$name.png")
             if (!file.exists()) {
                 val bitmap = assets.open(StickerPack.assetPath(name))
                     .use(BitmapFactory::decodeStream) ?: return null

@@ -67,7 +67,9 @@ app/src/main/
                              surface the service implements)
     settings/                KeyboardSettings (iOS keys over
                              SharedPreferences)
-    stickers/                StickerPack (canonical pack order)
+    stickers/                StickerPack (canonical order + emoji
+                             tags), StickerFiles (shared cache
+                             copies), WhatsAppStickerProvider (D-033)
     store/                   WordSuggestions (bundled dictionary),
                              LearnedWords (learned.sqlite + metrics)
     ui/                      KeyboardView, keys/ (KeyRow, KeyButton,
@@ -75,7 +77,9 @@ app/src/main/
                              MorphingWordText), settings/
                              (SettingsPanelView), emoji/ (EmojiPage),
                              theme/KeyboardColors
-    onboarding/              MainActivity (enable/switch shortcuts)
+    onboarding/              MainActivity (the app page — iOS
+                             ContentView counterpart, D-033),
+                             StickerSharing (WhatsApp/Telegram export)
 gradle/, gradlew, *.kts      Gradle 8.14.3, AGP 8.10.1, Kotlin 2.1.21
 ```
 
@@ -139,7 +143,7 @@ keyboard background (D-017).
 | `model/KeyboardModel` | Pages, shift machine, autocap, key handling, double-space, cursor-mode state, variant, name flash | Composed word, suggestion pipeline, learn hooks, metrics (Stages 5–6) |
 | `ui/KeyboardView` + `ui/keys/*` + `ui/settings/*` + `ui/emoji/*` | Key grid, gesture surfaces (deadline-based holds), bubbles/callouts/menu in the pass-through strip, suggestion bar, settings panel, emoji page with the sticker section | Unchanged |
 | `ui/theme/KeyboardColors` | Palette roles in use, resolved from the theme setting (system / forced light / forced dark) | Unchanged |
-| `onboarding/MainActivity` | Enable/switch shortcuts (verified) | Unchanged |
+| `onboarding/MainActivity` + `StickerSharing` | The app page (iOS ContentView counterpart): install steps, sticker pack with WhatsApp/Telegram export, feature cards (D-033) | Unchanged |
 
 **Data flow today**: key touch → `KeyRow` gesture surface → service →
 `model.handleKey` → `TextEditor` (`InputConnection`) edit; host change

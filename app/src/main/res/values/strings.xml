@@ -4,14 +4,32 @@
     <string name="app_name">Lezgi Keyboard</string>
     <string name="keyboard_name" translatable="false">Лезги чӏал</string>
 
-    <!-- Onboarding (localized like the iOS container app: en default, ru). -->
+    <!-- App page (localized like the iOS container app: en default, ru). -->
     <string name="onboarding_title">Lezgi Keyboard</string>
     <string name="onboarding_subtitle">Type in your native language</string>
     <string name="onboarding_how_to">How to install</string>
-    <string name="onboarding_step_enable">Enable «Лезги чӏал» in the keyboard list</string>
-    <string name="onboarding_open_settings">Open Settings</string>
+    <string name="onboarding_step_open_settings">Tap “Open Settings” below</string>
+    <string name="onboarding_step_enable">Turn on «Лезги чӏал» in the keyboard list</string>
     <string name="onboarding_step_switch">Switch to it with the 🌐 key or the keyboard picker</string>
+    <string name="onboarding_open_settings">Open Settings</string>
     <string name="onboarding_select_keyboard">Select keyboard</string>
+
+    <string name="stickers_title">Eagle stickers</string>
+    <string name="stickers_subtitle">Add the Lezgi sticker pack to your favorite messenger. The stickers are also available right from the keyboard’s emoji page.</string>
+    <string name="stickers_whatsapp" translatable="false">WhatsApp</string>
+    <string name="stickers_telegram" translatable="false">Telegram</string>
+    <string name="stickers_not_installed">%s is not installed</string>
+
+    <string name="feature_alphabet_title">Full Lezgi alphabet</string>
+    <string name="feature_alphabet_subtitle">Palochka and digraphs like цӏ, къ, уь are one long press away</string>
+    <string name="feature_suggestions_title">Word suggestions</string>
+    <string name="feature_suggestions_subtitle">Over 20,000 Lezgi words, fully offline</string>
+    <string name="feature_native_title">Feels native</string>
+    <string name="feature_native_subtitle">Matches the native keyboard down to the details</string>
+    <string name="feature_privacy_title">Private by design</string>
+    <string name="feature_privacy_subtitle">No Internet permission — nothing ever leaves your phone. Word learning stays on this device and can be reset from the keyboard</string>
+
+    <string name="onboarding_footer">Developed by LekiTech</string>
 
     <!-- Settings panel subtitles (Lezgi titles stay primary and are
          never localized; these small explanations follow the user's

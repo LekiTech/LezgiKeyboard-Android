@@ -5,10 +5,26 @@
     <string name="onboarding_title">Лезги Кхьин</string>
     <string name="onboarding_subtitle">Пишите на родном языке</string>
     <string name="onboarding_how_to">Как установить</string>
+    <string name="onboarding_step_open_settings">Нажмите «Открыть Настройки» ниже</string>
     <string name="onboarding_step_enable">Включите «Лезги чӏал» в списке клавиатур</string>
-    <string name="onboarding_open_settings">Открыть Настройки</string>
     <string name="onboarding_step_switch">Переключайтесь клавишей 🌐 или через выбор клавиатуры</string>
+    <string name="onboarding_open_settings">Открыть Настройки</string>
     <string name="onboarding_select_keyboard">Выбрать клавиатуру</string>
+
+    <string name="stickers_title">Стикеры с орлом</string>
+    <string name="stickers_subtitle">Добавьте лезгинский стикерпак в любимый мессенджер. Стикеры также доступны прямо с клавиатуры — на странице эмодзи.</string>
+    <string name="stickers_not_installed">%s не установлен</string>
+
+    <string name="feature_alphabet_title">Полный лезгинский алфавит</string>
+    <string name="feature_alphabet_subtitle">Палочка и диграфы — цӏ, къ, уь — через долгое нажатие</string>
+    <string name="feature_suggestions_title">Подсказки слов</string>
+    <string name="feature_suggestions_subtitle">Более 20 000 лезгинских слов, полностью офлайн</string>
+    <string name="feature_native_title">Как системная</string>
+    <string name="feature_native_subtitle">Повторяет системную клавиатуру до мелочей</string>
+    <string name="feature_privacy_title">Приватная по умолчанию</string>
+    <string name="feature_privacy_subtitle">Без доступа в интернет — данные не покидают телефон. Выученные слова хранятся на устройстве, их можно стереть прямо с клавиатуры</string>
+
+    <string name="onboarding_footer">Разработано LekiTech</string>
 
     <string name="settings_suggestions">подсказки</string>
     <string name="settings_word_suggestions">Подсказки слов</string>
