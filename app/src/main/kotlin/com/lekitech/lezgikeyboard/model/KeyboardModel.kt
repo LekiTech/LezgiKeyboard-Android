@@ -144,6 +144,37 @@ class KeyboardModel {
         if (pendingAcceptedWord != null && lastCompletedWord != pendingAcceptedWord) {
             pendingAcceptedWord = null
         }
+        // A host-confirmed state change disarms the auto-space swallow —
+        // unless it is just our own acceptance edit landing (the context
+        // still ends with the word + space). Same best-effort pattern as
+        // above.
+        val autoSpaced = autoSpacedAcceptedWord
+        if (autoSpaced != null &&
+            editor.textBeforeCursor(autoSpaced.length + 1)?.toString() != "$autoSpaced "
+        ) {
+            autoSpacedAcceptedWord = null
+        }
+    }
+
+    /**
+     * The word just inserted by a suggestion-bar tap together with its
+     * automatic trailing space — predictive and literal taps alike.
+     * Armed only for the very next key event: any other key or a host
+     * resync clears it, so a manually typed space or a space away from
+     * the cursor can never be swallowed. Deliberately separate from
+     * `pendingAcceptedWord` (metrics), which has different semantics
+     * and lifecycle.
+     */
+    private var autoSpacedAcceptedWord: String? = null
+
+    /**
+     * The globe never reaches `handleKey` on Android (the service
+     * switches input methods directly), but on iOS it consumes the
+     * swallow flag like every other key — the service calls this to
+     * keep that timing identical.
+     */
+    fun disarmAutoSpaceSwallow() {
+        autoSpacedAcceptedWord = null
     }
 
     // MARK: - Local quality metrics
@@ -382,6 +413,7 @@ class KeyboardModel {
         if (insertedSpace) {
             composedWord = ""
             lastCompletedWord = word
+            autoSpacedAcceptedWord = word
         } else {
             composedWord = word
         }
@@ -504,9 +536,27 @@ class KeyboardModel {
         // First keystroke dismisses the keyboard name, like native
         showsKeyboardName = false
 
+        // The auto-space swallow is armed for the very next key only:
+        // consume the flag now so every path below (including this key
+        // itself) leaves it cleared.
+        val autoSpaced = autoSpacedAcceptedWord
+        autoSpacedAcceptedWord = null
+
         when (cap) {
             is KeyCap.Character -> {
                 if (cap.text in wordTerminators) learnCompletedWord(editor)
+                // Sentence punctuation typed right after a bar tap lands
+                // next to the word: the auto-inserted trailing space is
+                // removed — but only when it provably is that space (flag
+                // armed by the tap AND the context still ends with word +
+                // space). This runs after learnCompletedWord, which
+                // no-ops on the trailing space, so the accepted word is
+                // never learned twice.
+                if (cap.text in autoSpaceSwallowers && autoSpaced != null &&
+                    editor.textBeforeCursor(autoSpaced.length + 1)?.toString() == "$autoSpaced "
+                ) {
+                    editor.deleteBackward()
+                }
                 val text =
                     if (isShifted) LezgiLayout.applyCase(cap.text, isCapsLock) else cap.text
                 editor.insertText(text)
@@ -661,6 +711,12 @@ class KeyboardModel {
 
     /** Punctuation that finishes the word before it, like space and return. */
     private val wordTerminators = setOf(".", ",", "?", "!", ";", ":")
+
+    /**
+     * Punctuation that, typed right after a bar tap, swallows the
+     * auto-inserted trailing space and lands next to the word.
+     */
+    private val autoSpaceSwallowers = setOf(".", ",", "?", "!")
 
     /** Characters that finish a word — the iOS separator set. */
     private val wordSeparators =

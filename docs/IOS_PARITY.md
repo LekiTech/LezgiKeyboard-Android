@@ -99,6 +99,17 @@ D-001) and the specification is updated afterwards.
   context change even though the raw words hold still.
 - The «…» guillemets around the literal render outside the per-glyph
   run, so glyph identity and the morph are unaffected.
+- Auto-space swallow: sentence punctuation (`.` `,` `?` `!`) typed as
+  the **very next key** after a bar tap (predictive and literal alike,
+  auto-space on) removes the auto-inserted trailing space and lands
+  next to the word («гаф » + `.` → «гаф.»). Dedicated state
+  (`autoSpacedAcceptedWord`), armed only by the tap's auto space and
+  consumed by any key — page switches, shift, and the globe included —
+  or by a host resync whose context no longer ends with the word +
+  space (the keyboard's own acceptance echo keeps it armed). The
+  swallow runs after `learnCompletedWord` no-ops on the trailing
+  space, so learning, metrics, and ranking see exactly the same events
+  as without it; manually typed spaces are never touched.
 
 ## Suggestion engine
 

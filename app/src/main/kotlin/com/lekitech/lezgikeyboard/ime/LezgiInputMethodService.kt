@@ -207,6 +207,9 @@ class LezgiInputMethodService : InputMethodService() {
             // open the system picker, the one switching hub that works
             // everywhere — direct cycling strands users on keyboards
             // that offer no way back (Samsung/One UI).
+            // On iOS the globe consumes the auto-space swallow flag
+            // like any other key; it never reaches the model here.
+            model.disarmAutoSpaceSwallow()
             inputMethodManager.showInputMethodPicker()
             return
         }
