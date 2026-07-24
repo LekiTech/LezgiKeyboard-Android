@@ -20,8 +20,9 @@ data class KeyboardSettings(
     val doubleSpacePeriod: Boolean = true,
     val spaceCursor: Boolean = true,
     val spaceLabel: Boolean = true,
-    // Learning / long press
-    val learnSpeed: LearnSpeed = LearnSpeed.NORMAL,
+    // Learning / long press. Learning speed defaults to fast on both
+    // platforms (D-034): a new word surfaces after one use.
+    val learnSpeed: LearnSpeed = LearnSpeed.FAST,
     val calloutDelay: CalloutDelay = CalloutDelay.NORMAL,
     // Theme
     val theme: Theme = Theme.SYSTEM,

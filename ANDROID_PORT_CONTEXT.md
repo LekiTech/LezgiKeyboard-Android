@@ -332,7 +332,7 @@ Defaults reproduce pre-settings behavior. iOS keys given for parity:
 | Double-space period | on | `set_doubleSpacePeriod` |
 | Space cursor mode | on | `set_spaceCursor` |
 | «ЛЕЗГ» space label | on | `set_spaceLabel` |
-| Learning speed (fast/normal/conservative = 1/3/5) | normal | `set_learnSpeed` |
+| Learning speed (fast/normal/conservative = 1/3/5) | fast | `set_learnSpeed` |
 | Callout delay (0.2/0.3/0.45 s) | normal | `set_calloutDelay` |
 | Theme (system/light/dark) | system | `set_theme` |
 

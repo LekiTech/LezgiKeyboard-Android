@@ -19,11 +19,12 @@ class LearnedWords private constructor(private val db: SQLiteDatabase) {
 
     /**
      * A word must be confirmed this many times (typed or picked) before
-     * it is suggested, so a typo made once or twice never surfaces.
-     * User-adjustable from Stage 7 (fast 1 / normal 3 / conservative 5);
-     * only the visibility threshold changes, never the learning.
+     * it is suggested. User-adjustable (fast 1 — the default, D-034 —
+     * / normal 3 / conservative 5); only the visibility threshold
+     * changes, never the learning. The service syncs this from the
+     * saved setting at startup.
      */
-    var minVisibleUses = 3
+    var minVisibleUses = 1
 
     // MARK: - Learnability
 

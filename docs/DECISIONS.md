@@ -491,3 +491,13 @@ release. The pack itself was already bundled for the in-keyboard
 sticker section (D-031), so the export costs only the two official
 integration contracts — and those are the paths WhatsApp and Telegram
 document and keep stable.
+
+## D-034 (2026-07-23) — Learning speed defaults to fast
+
+The `set_learnSpeed` default is `fast` (visibility threshold 1),
+matching the updated iOS implementation — both platforms changed from
+the original `normal` (3) on the owner's direction: a new user's own
+words should surface immediately, not after three uses. Only the
+default changes — the setting, the stored data, and the learning
+algorithm are untouched, and installs that ever saved the preference
+keep their choice. The spec's settings table is updated accordingly.
