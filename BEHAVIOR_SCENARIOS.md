@@ -31,10 +31,26 @@ Given the auto-space setting off. When the user taps a candidate. Then the
 word is inserted without a trailing space and remains the active
 composition, extendable by further typing.
 
+**S18 — Punctuation swallows the automatic space.**
+Given a word just accepted from the bar with its automatic trailing space
+(predictive suggestion or quoted literal alike). When the next text input
+is `.` `,` `?` `!` `;` `:` `)` `]` or `}`. Then the automatic space is
+removed and the mark lands right after the word («word.», not «word .»).
+Quotes never swallow — after a space they usually OPEN a quotation and
+the space must stay. Switching to the
+«123»/«#+=» page to reach the mark does NOT cancel the swallow — page
+switches, shift, and the gear are not text input. A manually typed space
+is never removed; typing any other character, space, return, backspace,
+or moving the cursor in between keeps the space; with auto-space off
+nothing changes.
+
 **S5 — Suggestions follow the sentence context.**
-Given a sentence start (empty field, or after `.` `!` `?`). When
-suggestions appear. Then they are capitalized; with Caps Lock on they are
-fully uppercased; mid-sentence they appear as stored.
+Given a sentence start (empty field, or after `.` `!` `?` — including
+when a closing quote or bracket trails the ender, as in «word?» or
+word.). When suggestions appear. Then they are capitalized; with Caps
+Lock on they are fully uppercased; mid-sentence they appear as stored.
+The same rule capitalizes the next typed letter, and the double-space
+period also fires after a closing quote/bracket.
 
 ## Learning lifecycle
 

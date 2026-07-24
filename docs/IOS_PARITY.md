@@ -99,17 +99,26 @@ D-001) and the specification is updated afterwards.
   context change even though the raw words hold still.
 - The «…» guillemets around the literal render outside the per-glyph
   run, so glyph identity and the morph are unaffected.
-- Auto-space swallow: sentence punctuation (`.` `,` `?` `!`) typed as
-  the **very next key** after a bar tap (predictive and literal alike,
-  auto-space on) removes the auto-inserted trailing space and lands
-  next to the word («гаф » + `.` → «гаф.»). Dedicated state
+- Auto-space swallow (S18): `.` `,` `?` `!` `;` `:` `)` `]` `}` typed
+  as the next **text input** after a bar tap (predictive and literal
+  alike, auto-space on) removes the auto-inserted trailing space and
+  lands next to the word («гаф » + `.` → «гаф.»). The deletion rule is
+  Apple-documented; the exact set is our reading of "other
+  punctuation", and quotes are deliberately excluded (our decision — a
+  quote after a space usually opens a quotation). Dedicated state
   (`autoSpacedAcceptedWord`), armed only by the tap's auto space and
-  consumed by any key — page switches, shift, and the globe included —
-  or by a host resync whose context no longer ends with the word +
-  space (the keyboard's own acceptance echo keeps it armed). The
-  swallow runs after `learnCompletedWord` no-ops on the trailing
-  space, so learning, metrics, and ranking see exactly the same events
-  as without it; manually typed spaces are never touched.
+  consumed **only by text events** — character, space, return,
+  backspace — or by a host resync whose context no longer ends with
+  the word + space (the keyboard's own acceptance echo keeps it
+  armed). Page switches, shift, and the other non-text keys keep it
+  armed: the marks live on the symbol pages. The swallow runs after
+  `learnCompletedWord` no-ops on the trailing space, so learning,
+  metrics, and ranking see exactly the same events as without it;
+  manually typed spaces are never touched.
+- Sentence closers `)` `]` `}` `"` `'` `»` (our design in the native
+  spirit): the double-space period also fires when one of them
+  precedes the first space, and sentence-start capitalization looks
+  through them («word?» still ends the sentence).
 
 ## Suggestion engine
 

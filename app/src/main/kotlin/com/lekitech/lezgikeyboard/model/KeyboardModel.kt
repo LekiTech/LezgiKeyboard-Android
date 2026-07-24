@@ -159,23 +159,15 @@ class KeyboardModel {
     /**
      * The word just inserted by a suggestion-bar tap together with its
      * automatic trailing space — predictive and literal taps alike.
-     * Armed only for the very next key event: any other key or a host
-     * resync clears it, so a manually typed space or a space away from
-     * the cursor can never be swallowed. Deliberately separate from
-     * `pendingAcceptedWord` (metrics), which has different semantics
-     * and lifecycle.
+     * Consumed by the next TEXT event only (character, space, return,
+     * backspace) or by a host resync whose context moved on — page
+     * switches and the other non-text keys keep it armed, and a
+     * manually typed space or a space away from the cursor can never
+     * be swallowed. Deliberately separate from `pendingAcceptedWord`
+     * (metrics), which has different semantics and lifecycle.
      */
     private var autoSpacedAcceptedWord: String? = null
 
-    /**
-     * The globe never reaches `handleKey` on Android (the service
-     * switches input methods directly), but on iOS it consumes the
-     * swallow flag like every other key — the service calls this to
-     * keep that timing identical.
-     */
-    fun disarmAutoSpaceSwallow() {
-        autoSpacedAcceptedWord = null
-    }
 
     // MARK: - Local quality metrics
 
@@ -536,14 +528,19 @@ class KeyboardModel {
         // First keystroke dismisses the keyboard name, like native
         showsKeyboardName = false
 
-        // The auto-space swallow is armed for the very next key only:
-        // consume the flag now so every path below (including this key
-        // itself) leaves it cleared.
+        // The auto-space swallow survives non-text keys: page switches,
+        // shift, the gear — the user is still "right after the accepted
+        // word" while walking to the punctuation on the «123» page (the
+        // letters page has none of . , ? !). Only text events consume
+        // the flag: a character (including the swallowing mark itself),
+        // space, return, backspace. Emoji inserts and cursor moves
+        // bypass handleKey, but the context check below (word + space
+        // still at the cursor) keeps them safe regardless.
         val autoSpaced = autoSpacedAcceptedWord
-        autoSpacedAcceptedWord = null
 
         when (cap) {
             is KeyCap.Character -> {
+                autoSpacedAcceptedWord = null
                 if (cap.text in wordTerminators) learnCompletedWord(editor)
                 // Sentence punctuation typed right after a bar tap lands
                 // next to the word: the auto-inserted trailing space is
@@ -584,13 +581,18 @@ class KeyboardModel {
             // Quick double space after a word turns into ". " with a
             // capital next (user-disableable in the settings panel)
             KeyCap.Space -> {
+                autoSpacedAcceptedWord = null
                 val now = System.nanoTime()
                 val last = lastSpaceTapNanos
                 val before = editor.textBeforeCursor(2)
+                // The shortcut also fires after a closing quote/bracket —
+                // «word" ␣␣» → «word". » (our extension; the letter/digit
+                // core is the classic rule)
+                val prev = before?.takeIf { it.length >= 2 }?.get(before.length - 2)
                 if (settings.doubleSpacePeriod &&
                     last != null && now - last < 350_000_000L &&
-                    before != null && before.length >= 2 && before.last() == ' ' &&
-                    before[before.length - 2].isLetterOrDigit()
+                    before != null && before.isNotEmpty() && before.last() == ' ' &&
+                    prev != null && (prev.isLetterOrDigit() || prev in sentenceClosers)
                 ) {
                     editor.deleteBackward()
                     editor.insertText(". ")
@@ -606,6 +608,7 @@ class KeyboardModel {
             }
 
             KeyCap.Return -> {
+                autoSpacedAcceptedWord = null
                 learnCompletedWord(editor)
                 editor.performReturn()
                 composedWord = ""
@@ -619,6 +622,7 @@ class KeyboardModel {
             }
 
             KeyCap.Backspace -> {
+                autoSpacedAcceptedWord = null
                 // Deleting the trailing space of a completed word means
                 // "going back to edit that word": composition resumes
                 // with the whole word (extracted from the pre-delete
@@ -702,7 +706,10 @@ class KeyboardModel {
         val before = editor.textBeforeCursor(48)
         if (before.isNullOrEmpty()) return true
         if (before.last() == '\n') return true
-        val trimmed = before.trimEnd()
+        // Closing quotes/brackets may trail the sentence ender —
+        // «word?» is still a sentence end, so capitalization looks
+        // through them
+        val trimmed = before.trimEnd().trimEnd { it in sentenceClosers }
         if (trimmed.isEmpty()) return true
         return trimmed.last() in ".!?"
     }
@@ -714,9 +721,25 @@ class KeyboardModel {
 
     /**
      * Punctuation that, typed right after a bar tap, swallows the
-     * auto-inserted trailing space and lands next to the word.
+     * auto-inserted trailing space and lands next to the word. The
+     * rule itself is Apple-documented ("if you enter a comma, period,
+     * or other punctuation, the space is deleted"); the exact set is
+     * OUR reading of "other punctuation": sentence marks, clause
+     * marks, and unambiguous closers. Excluding quotes is our design
+     * decision, not verified native behavior — a quote after a space
+     * is usually an OPENING quote for the next word, so the space
+     * must stay.
      */
-    private val autoSpaceSwallowers = setOf(".", ",", "?", "!")
+    private val autoSpaceSwallowers =
+        setOf(".", ",", "?", "!", ";", ":", ")", "]", "}")
+
+    /**
+     * Closing wrappers that may trail a sentence ender («word?» /
+     * word.) without hiding it: capitalization and the double-space
+     * period look through them. Our design decision in the native
+     * spirit (not verified against iOS glyph by glyph).
+     */
+    private val sentenceClosers = setOf(')', ']', '}', '"', '\'', '»')
 
     /** Characters that finish a word — the iOS separator set. */
     private val wordSeparators =
