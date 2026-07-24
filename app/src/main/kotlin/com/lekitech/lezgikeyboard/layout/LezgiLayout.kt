@@ -57,9 +57,10 @@ object LezgiLayout {
 
     /**
      * Extra space above the suggestion-bar area so top-row previews
-     * (54 + 11 above the key) and callouts (54 + 16 − 9) render at
-     * their natural offsets instead of clamping down over the key like
-     * iOS does. Owner-decided Android refinement — DECISIONS.md D-024.
+     * (54 + 11 above the key) and callouts (centered 34 above the key
+     * top) render at their natural offsets instead of clamping down
+     * over the key like iOS does. Owner-decided Android refinement —
+     * DECISIONS.md D-024.
      */
     const val OVERLAY_HEADROOM = 21
 

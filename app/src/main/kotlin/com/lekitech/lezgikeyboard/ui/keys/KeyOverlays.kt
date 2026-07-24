@@ -49,7 +49,12 @@ internal fun Modifier.overlayAt(x: Dp, y: Dp): Modifier = layout { measurable, _
 internal val CALLOUT_OPTION_WIDTH = 44.dp
 internal val BUBBLE_HEIGHT = 54.dp
 private val NECK_ABOVE_KEY = 11.dp
-private val CALLOUT_TAIL = 16.dp
+
+/**
+ * The floating options row keeps its center 34 dp above the pressed
+ * key's top — exactly where the necked version used to sit.
+ */
+private val CALLOUT_CENTER_ABOVE_KEY = 34.dp
 
 /**
  * Native-style key preview: rounded bubble above the key, sides curving
@@ -114,10 +119,12 @@ internal fun KeyPreviewBubble(
 
 /**
  * Long-press callout: a horizontal bubble of alternates (44 per option,
- * base character first), the selected option white on blue, with a
- * key-width neck overlapping the key top by 9. Options display
- * case-adjusted; the raw string is dispatched through the normal
- * key-handling path. Clamped to the row edges.
+ * base character first), the selected option white on blue. Once the
+ * long-press interface is active the connection to the key disappears:
+ * the options row floats clean, no neck — its position is unchanged
+ * from the necked version (center 34 dp above the key top). Options
+ * display case-adjusted; the raw string is dispatched through the
+ * normal key-handling path. Clamped to the row edges.
  */
 @Composable
 internal fun CalloutBubble(
@@ -135,15 +142,9 @@ internal fun CalloutBubble(
     // Clamped to the keyboard top: the IME window cannot draw above
     // itself, so top-row callouts slide down over the pressed key
     // instead of clipping — the reference keyboard clamps the same way.
-    val bubbleTop = maxOf(-(BUBBLE_HEIGHT + CALLOUT_TAIL) + 9.dp, -rowTopInKeyboard)
+    val bubbleTop =
+        maxOf(-(BUBBLE_HEIGHT / 2 + CALLOUT_CENTER_ABOVE_KEY), -rowTopInKeyboard)
 
-    // Key-width neck centered under the pressed key
-    Box(
-        modifier = Modifier
-            .overlayAt(x = frame.x, y = bubbleTop + BUBBLE_HEIGHT)
-            .size(frame.width, CALLOUT_TAIL)
-            .drawBehind { drawRect(colors.letterKeyPressed) },
-    )
     Row(
         modifier = Modifier
             .overlayAt(x = bubbleLeft, y = bubbleTop)
